@@ -1,11 +1,11 @@
 # Cup Circle 26
 
-A small private World Cup picks board for up to 10 friends. Each person chooses one country. Active picks stay green; eliminated teams turn gray. The board also shows flags, captains, and recent matches.
+A small private World Cup picks board for up to 20 friends. Each person chooses one country. Active picks stay green; eliminated teams turn gray. The board also shows flags, captains, and recent matches.
 
 ## What is included
 
 - Shared group protected by a code
-- Up to 10 named friends
+- Up to 20 named friends
 - All 48 tournament teams, groups, flags, and captains
 - Green active cards and gray eliminated cards
 - Recent match results and upcoming fixtures
@@ -67,7 +67,7 @@ If this app is kept inside a larger repository, set the Vercel **Root Directory*
 
 ### 3. Add free shared storage
 
-This is what makes all 10 friends see the same picks.
+This is what makes all 20 friends see the same picks.
 
 1. Open the new project in Vercel.
 2. Open **Storage** or **Marketplace**.
@@ -75,7 +75,7 @@ This is what makes all 10 friends see the same picks.
 4. Choose the free plan, create a Redis database, and connect it to this Vercel project.
 5. Upstash automatically adds `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to the project.
 
-The free Upstash tier currently includes 256 MB and 500,000 commands per month, which is far more than this 10-person app needs.
+The free Upstash tier currently includes 256 MB and 500,000 commands per month, which is far more than this 20-person app needs.
 
 ### 4. Add private settings
 

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const normalizedName = name.toLocaleLowerCase("en-US");
   const exists = await pickExists(code, normalizedName);
   if (!exists && (await pickCount(code)) >= MAX_FRIENDS) {
-    return apiError("This group already has 10 friends. Existing friends can still update their picks.", 409);
+    return apiError("This group already has 20 friends. Existing friends can still update their picks.", 409);
   }
 
   await savePick(code, normalizedName, {

@@ -8,7 +8,7 @@ const emptyGroup: GroupData = {
   picks: [],
   statuses: {},
   games: [],
-  maxFriends: 10,
+  maxFriends: 20,
   usingCloudStorage: false,
   storageMode: "temporary",
   scoreSyncEnabled: false,
@@ -223,7 +223,7 @@ export function WorldCupDashboard() {
         <section className="gate-card">
           <div className="mini-mark"><span>26</span></div>
           <p className="eyebrow">A private World Cup circle</p>
-          <h1>One team.<br />Ten friends.</h1>
+          <h1>One team.<br />Twenty friends.</h1>
           <p className="gate-copy">Pick the country you are backing, follow the results, and see whose dream stays green.</p>
           <form onSubmit={submitCode} className="gate-form">
             <label htmlFor="group-code">Your group code</label>
