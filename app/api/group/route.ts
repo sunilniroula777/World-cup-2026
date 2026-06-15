@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWorldCupFeed } from "@/lib/espn";
-import { getGames, getPicks, getStatuses, setTeamStatus, usingCloudStorage } from "@/lib/store";
+import { getGames, getPicks, getStatuses, setTeamStatus, storageMode, usingCloudStorage } from "@/lib/store";
 import { isValidGroupCode, MAX_FRIENDS, normalizeCode } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     games,
     maxFriends: MAX_FRIENDS,
     usingCloudStorage,
+    storageMode,
     scoreSyncEnabled: true,
     dataSource,
     updatedAt,

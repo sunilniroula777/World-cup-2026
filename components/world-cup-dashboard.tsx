@@ -10,6 +10,7 @@ const emptyGroup: GroupData = {
   games: [],
   maxFriends: 10,
   usingCloudStorage: false,
+  storageMode: "temporary",
   scoreSyncEnabled: false,
   dataSource: "Manual backup",
   updatedAt: new Date(0).toISOString(),
@@ -327,7 +328,8 @@ export function WorldCupDashboard() {
                 <button type="button" onClick={syncGames} disabled={loading || !adminPin}>Refresh scores now</button>
               </div>
             </div>
-            {!group.usingCloudStorage && <p className="storage-warning">Demo storage is active. Connect Upstash before sharing the deployed app so picks persist.</p>}
+            {group.storageMode === "local-file" && <p className="storage-note">Local file storage is active. Picks now survive preview server restarts on this computer.</p>}
+            {group.storageMode === "temporary" && <p className="storage-warning">Temporary storage is active. Connect Upstash before sharing the deployed app so picks persist.</p>}
           </div>
         </details>
       </div>

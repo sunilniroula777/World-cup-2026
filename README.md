@@ -38,7 +38,7 @@ A small private World Cup picks board for up to 10 friends. Each person chooses 
 
 5. Open `http://localhost:3000` and enter the group code.
 
-Without Upstash, local development uses temporary in-memory data. Restarting the server clears those picks.
+Local development stores picks in `.data/cup-circle.json`, so restarting the preview server does not clear them. The `.data` folder is excluded from Git.
 
 ## Deploy free on Vercel
 

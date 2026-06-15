@@ -25,6 +25,7 @@ export type GroupData = {
   games: Match[];
   maxFriends: number;
   usingCloudStorage: boolean;
+  storageMode?: "cloud" | "local-file" | "temporary";
   scoreSyncEnabled: boolean;
   dataSource?: string;
   updatedAt: string;
