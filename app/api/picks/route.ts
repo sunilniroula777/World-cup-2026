@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { teamById } from "@/lib/teams";
-import { pickCount, pickExists, savePick } from "@/lib/store";
+import { pickCount, pickExists, savePick, storageMode } from "@/lib/store";
 import { apiError, isValidGroupCode, MAX_FRIENDS, normalizeCode } from "@/lib/server";
 
 export async function POST(request: NextRequest) {
@@ -9,6 +9,9 @@ export async function POST(request: NextRequest) {
 
   const code = normalizeCode(body.code);
   if (!isValidGroupCode(code)) return apiError("That group code is not correct.", 401);
+  if (storageMode === "temporary") {
+    return apiError("Storage is not connected yet. Add Upstash Redis in Vercel before friends submit picks.", 503);
+  }
 
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
   const teamId = typeof body.teamId === "string" ? body.teamId : "";

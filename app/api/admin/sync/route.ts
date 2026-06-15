@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWorldCupFeed } from "@/lib/espn";
 import { apiError, isValidAdminPin, isValidGroupCode, normalizeCode } from "@/lib/server";
-import { setGames, setTeamStatus } from "@/lib/store";
+import { setGames, setTeamStatus, storageMode } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -10,6 +10,9 @@ export async function POST(request: NextRequest) {
   const code = normalizeCode(body.code);
   if (!isValidGroupCode(code)) return apiError("That group code is not correct.", 401);
   if (!isValidAdminPin(body.adminPin)) return apiError("Admin PIN is incorrect.", 403);
+  if (storageMode === "temporary") {
+    return apiError("Storage is not connected yet. Add Upstash Redis in Vercel before saving refreshed scores.", 503);
+  }
 
   try {
     const feed = await fetchWorldCupFeed();

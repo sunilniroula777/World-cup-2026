@@ -67,7 +67,7 @@ If this app is kept inside a larger repository, set the Vercel **Root Directory*
 
 ### 3. Add free shared storage
 
-This is what makes all 20 friends see the same picks.
+This is required before sharing the Vercel app. Without it, the deployed app refuses new picks because Vercel's server filesystem is temporary.
 
 1. Open the new project in Vercel.
 2. Open **Storage** or **Marketplace**.
@@ -76,6 +76,8 @@ This is what makes all 20 friends see the same picks.
 5. Upstash automatically adds `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to the project.
 
 The free Upstash tier currently includes 256 MB and 500,000 commands per month, which is far more than this 20-person app needs.
+
+After redeploying, open Organizer controls and confirm you do not see a storage warning. The main dashboard should say **Storage ready**.
 
 ### 4. Add private settings
 

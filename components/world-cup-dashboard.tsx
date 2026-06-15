@@ -90,6 +90,12 @@ function PickCard({ pick, state }: { pick: Pick; state: TeamState }) {
   );
 }
 
+function storageMessage(mode: GroupData["storageMode"]) {
+  if (mode === "cloud") return "Cloud storage is active. Friend picks are saved in Upstash Redis.";
+  if (mode === "local-file") return "Local file storage is active. Preview picks survive server restarts on this computer.";
+  return "Storage setup required. Connect Upstash Redis in Vercel before friends submit picks.";
+}
+
 export function WorldCupDashboard() {
   const [groupCode, setGroupCode] = useState("");
   const [codeInput, setCodeInput] = useState("");
@@ -267,6 +273,11 @@ export function WorldCupDashboard() {
           </div>
         </section>
 
+        <div className={`storage-banner ${group.storageMode === "temporary" ? "warning" : "ok"}`}>
+          <strong>{group.storageMode === "temporary" ? "Do not share yet" : "Storage ready"}</strong>
+          <span>{storageMessage(group.storageMode)}</span>
+        </div>
+
         <section className="pick-panel">
           <div className="section-heading compact">
             <div><span className="step-number">01</span><h2>Make your pick</h2></div>
@@ -275,7 +286,7 @@ export function WorldCupDashboard() {
           <form className="pick-form" onSubmit={saveMyPick}>
             <label><span>Your name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex" maxLength={24} required /></label>
             <label className="team-select"><span>Your country</span><select value={teamId} onChange={(event) => setTeamId(event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>Group {team.group} · {team.name}</option>)}</select></label>
-            <button className="primary-button" disabled={loading || !name.trim()}>{loading ? "Saving..." : "Lock it in"}</button>
+            <button className="primary-button" disabled={loading || !name.trim() || group.storageMode === "temporary"}>{loading ? "Saving..." : "Lock it in"}</button>
           </form>
         </section>
 
@@ -328,8 +339,7 @@ export function WorldCupDashboard() {
                 <button type="button" onClick={syncGames} disabled={loading || !adminPin}>Refresh scores now</button>
               </div>
             </div>
-            {group.storageMode === "local-file" && <p className="storage-note">Local file storage is active. Picks now survive preview server restarts on this computer.</p>}
-            {group.storageMode === "temporary" && <p className="storage-warning">Temporary storage is active. Connect Upstash before sharing the deployed app so picks persist.</p>}
+            {group.storageMode !== "cloud" && <p className={group.storageMode === "local-file" ? "storage-note" : "storage-warning"}>{storageMessage(group.storageMode)}</p>}
           </div>
         </details>
       </div>
