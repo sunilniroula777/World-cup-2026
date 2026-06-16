@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 export const MAX_FRIENDS = 20;
+export const ENTRY_FEE = 50;
 
 export function normalizeCode(value: unknown) {
   return typeof value === "string" ? value.trim().toUpperCase() : "";

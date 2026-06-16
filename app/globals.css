@@ -127,6 +127,19 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .empty-state span:last-child { font-size: 12px; }
 .empty-number { font: 800 60px/1 var(--font-display); color: var(--line); }
 
+.pool-summary { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); background: var(--white); margin-bottom: 12px; }
+.pool-summary div { padding: 22px; border-right: 1px solid var(--line); }
+.pool-summary div:last-child { border: 0; }
+.pool-summary strong { display: block; font: 700 44px/1 var(--font-display); color: var(--green); }
+.pool-summary span { display: block; margin-top: 8px; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; color: var(--muted); }
+.pool-list { display: grid; gap: 8px; }
+.pool-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; background: var(--white); border: 1px solid var(--line); padding: 16px 18px; }
+.pool-row strong { display: block; font-size: 14px; }
+.pool-row span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.pool-row b { padding: 7px 10px; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.pool-row b.paid { background: var(--green-soft); color: var(--green); }
+.pool-row b.pending { background: #fff0c7; color: #6f5818; }
+
 .admin-panel { margin: 70px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .admin-panel summary { list-style: none; padding: 22px 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
 .admin-panel summary::-webkit-details-marker { display: none; }
@@ -170,6 +183,10 @@ footer { width: min(1240px, calc(100% - 48px)); margin: 0 auto; border-top: 1px 
   .content-section { padding-top: 48px; }
   .picks-grid { grid-template-columns: 1fr; }
   .country-lockup h2 { font-size: 34px; }
+  .pool-summary { grid-template-columns: 1fr; }
+  .pool-summary div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .pool-summary div:last-child { border-bottom: 0; }
+  .pool-row { align-items: flex-start; flex-direction: column; }
   .legend { width: 100%; justify-content: space-between; }
   .gate-card { padding: 34px 24px; }
   .gate-form > div { flex-direction: column; border: 0; gap: 8px; }

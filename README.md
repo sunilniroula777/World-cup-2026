@@ -8,6 +8,7 @@ A small private World Cup picks board for up to 20 friends. Each person chooses 
 - Up to 20 named friends
 - All 48 tournament teams, groups, flags, and captains
 - Green active cards and gray eliminated cards
+- Prize pool tracker with $50 payment status per friend
 - Recent match results and upcoming fixtures
 - Organizer panel for corrections, manual results, and elimination status
 - Automatic match updates from ESPN's public World Cup feed
@@ -111,6 +112,7 @@ After adding storage and environment variables:
 - The board refreshes every 30 seconds.
 - Use **Add a result** if the free score provider is delayed.
 - Use **Team status > Still alive** to undo an accidental elimination.
+- Use **Pool payment** to mark a friend paid after they send the $50 entry fee.
 - Captain names are stored in `lib/teams.ts` and can be edited if tournament leadership changes.
 
 ## Checks

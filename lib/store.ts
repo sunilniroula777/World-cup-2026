@@ -57,14 +57,16 @@ async function writeLocalStore(store: FileStore) {
   await rename(temporaryDataFile, dataFile);
 }
 
-async function updateLocalStore(change: (store: FileStore) => void) {
+async function updateLocalStore<T = void>(change: (store: FileStore) => T) {
+  let result: T;
   const operation = fileWriteQueue.then(async () => {
     const store = await readLocalStore();
-    change(store);
+    result = change(store);
     await writeLocalStore(store);
   });
   fileWriteQueue = operation.catch(() => undefined);
   await operation;
+  return result!;
 }
 
 function emptyGroup(): StoredGroup {
@@ -98,19 +100,60 @@ export async function getPicks(code: string): Promise<Pick[]> {
 }
 
 export async function savePick(code: string, normalizedName: string, pick: Pick) {
+  const previousPick = await getPick(code, normalizedName);
+  const nextPick = previousPick ? { ...pick, paid: previousPick.paid, paidAt: previousPick.paidAt } : pick;
   if (redis) {
-    await redis.hset(key(code, "picks"), { [normalizedName]: pick });
+    await redis.hset(key(code, "picks"), { [normalizedName]: nextPick });
     return;
   }
   if (useLocalFile) {
     await updateLocalStore((store) => {
-      ensureGroup(store, code).picks[normalizedName] = pick;
+      ensureGroup(store, code).picks[normalizedName] = nextPick;
     });
     return;
   }
   const groupPicks = memory.picks.get(code) ?? new Map<string, Pick>();
-  groupPicks.set(normalizedName, pick);
+  groupPicks.set(normalizedName, nextPick);
   memory.picks.set(code, groupPicks);
+}
+
+export async function getPick(code: string, normalizedName: string): Promise<Pick | null> {
+  if (redis) return (await redis.hget<Pick>(key(code, "picks"), normalizedName)) ?? null;
+  if (useLocalFile) return (await getLocalGroup(code)).picks[normalizedName] ?? null;
+  return memory.picks.get(code)?.get(normalizedName) ?? null;
+}
+
+export async function setPickPaid(code: string, normalizedName: string, paid: boolean) {
+  const updatePayment = (pick: Pick): Pick => {
+    const nextPick: Pick = { ...pick, paid };
+    if (paid) {
+      nextPick.paidAt = new Date().toISOString();
+    } else {
+      delete nextPick.paidAt;
+    }
+    return nextPick;
+  };
+
+  if (redis) {
+    const pick = await getPick(code, normalizedName);
+    if (!pick) return false;
+    await redis.hset(key(code, "picks"), { [normalizedName]: updatePayment(pick) });
+    return true;
+  }
+  if (useLocalFile) {
+    return updateLocalStore((store) => {
+      const group = ensureGroup(store, code);
+      const pick = group.picks[normalizedName];
+      if (!pick) return false;
+      group.picks[normalizedName] = updatePayment(pick);
+      return true;
+    });
+  }
+
+  const pick = memory.picks.get(code)?.get(normalizedName);
+  if (!pick) return false;
+  memory.picks.get(code)!.set(normalizedName, updatePayment(pick));
+  return true;
 }
 
 export async function pickCount(code: string) {

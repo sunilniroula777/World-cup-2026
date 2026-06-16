@@ -9,6 +9,7 @@ const emptyGroup: GroupData = {
   statuses: {},
   games: [],
   maxFriends: 20,
+  entryFee: 50,
   usingCloudStorage: false,
   storageMode: "temporary",
   scoreSyncEnabled: false,
@@ -112,6 +113,8 @@ export function WorldCupDashboard() {
   const [awayTeamId, setAwayTeamId] = useState("south-africa");
   const [homeScore, setHomeScore] = useState("0");
   const [awayScore, setAwayScore] = useState("0");
+  const [paymentName, setPaymentName] = useState("");
+  const [paymentPaid, setPaymentPaid] = useState("true");
 
   const loadGroup = useCallback(async (code: string, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -153,6 +156,16 @@ export function WorldCupDashboard() {
     [group.picks, group.statuses]
   );
   const aliveCount = picks.filter((pick) => group.statuses[pick.teamId] !== "eliminated").length;
+  const paidCount = picks.filter((pick) => pick.paid).length;
+  const collectedPool = paidCount * group.entryFee;
+  const expectedPool = picks.length * group.entryFee;
+
+  useEffect(() => {
+    if (!paymentName && picks[0]) setPaymentName(picks[0].name.toLocaleLowerCase("en-US"));
+    if (paymentName && !picks.some((pick) => pick.name.toLocaleLowerCase("en-US") === paymentName)) {
+      setPaymentName(picks[0]?.name.toLocaleLowerCase("en-US") ?? "");
+    }
+  }, [paymentName, picks]);
 
   async function submitCode(event: FormEvent) {
     event.preventDefault();
@@ -218,6 +231,18 @@ export function WorldCupDashboard() {
       setNotice(`Scores synced: ${result.matches} tournament matches found.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not sync scores.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function updatePayment(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await apiPost("/api/admin/payment", { adminPin, name: paymentName, paid: paymentPaid === "true" }, "Pool payment updated.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update the pool payment.");
     } finally {
       setLoading(false);
     }
@@ -316,6 +341,36 @@ export function WorldCupDashboard() {
           )}
         </section>
 
+        <section className="content-section">
+          <div className="section-heading">
+            <div><span className="step-number">04</span><h2>Prize pool</h2></div>
+            <span className="updated">${group.entryFee} entry fee</span>
+          </div>
+          <div className="pool-summary">
+            <div><strong>${collectedPool}</strong><span>Collected</span></div>
+            <div><strong>${expectedPool}</strong><span>If everyone pays</span></div>
+            <div><strong>{paidCount}/{picks.length}</strong><span>Paid entries</span></div>
+          </div>
+          {picks.length ? (
+            <div className="pool-list">
+              {picks.map((pick) => {
+                const team = teamById.get(pick.teamId);
+                return (
+                  <article className="pool-row" key={`pool-${pick.name.toLowerCase()}`}>
+                    <div>
+                      <strong>{pick.name}</strong>
+                      <span>{team?.name ?? "Unknown team"}</span>
+                    </div>
+                    <b className={pick.paid ? "paid" : "pending"}>{pick.paid ? "Paid $50" : "Not paid"}</b>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state small"><strong>No pool entries yet.</strong><span>Friends appear here after they make a pick.</span></div>
+          )}
+        </section>
+
         <details className="admin-panel">
           <summary><span>Organizer controls</span><small>Scores, sync and eliminations</small></summary>
           <div className="admin-body">
@@ -338,6 +393,17 @@ export function WorldCupDashboard() {
                 <p>Refresh the public ESPN feed now. The dashboard also checks automatically every 30 seconds.</p>
                 <button type="button" onClick={syncGames} disabled={loading || !adminPin}>Refresh scores now</button>
               </div>
+              <form onSubmit={updatePayment} className="admin-card">
+                <h3>Pool payment</h3>
+                <select value={paymentName} onChange={(event) => setPaymentName(event.target.value)} disabled={!picks.length}>
+                  {picks.length ? picks.map((pick) => <option key={pick.name.toLowerCase()} value={pick.name.toLocaleLowerCase("en-US")}>{pick.name}</option>) : <option value="">No entries yet</option>}
+                </select>
+                <select value={paymentPaid} onChange={(event) => setPaymentPaid(event.target.value)}>
+                  <option value="true">Paid $50</option>
+                  <option value="false">Not paid</option>
+                </select>
+                <button disabled={loading || !adminPin || !picks.length}>Update payment</button>
+              </form>
             </div>
             {group.storageMode !== "cloud" && <p className={group.storageMode === "local-file" ? "storage-note" : "storage-warning"}>{storageMessage(group.storageMode)}</p>}
           </div>

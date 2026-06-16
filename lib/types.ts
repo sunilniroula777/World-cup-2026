@@ -3,6 +3,8 @@ export type TeamState = "alive" | "eliminated";
 export type Pick = {
   name: string;
   teamId: string;
+  paid?: boolean;
+  paidAt?: string;
   updatedAt: string;
 };
 
@@ -24,6 +26,7 @@ export type GroupData = {
   statuses: Record<string, TeamState>;
   games: Match[];
   maxFriends: number;
+  entryFee: number;
   usingCloudStorage: boolean;
   storageMode?: "cloud" | "local-file" | "temporary";
   scoreSyncEnabled: boolean;
