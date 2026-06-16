@@ -8,6 +8,17 @@ export type Pick = {
   updatedAt: string;
 };
 
+export type MatchEventType = "goal" | "yellow-card" | "red-card" | "other";
+
+export type MatchEvent = {
+  type: MatchEventType;
+  minute: string;
+  teamId: string | null;
+  teamName: string;
+  playerName: string;
+  description: string;
+};
+
 export type Match = {
   id: string;
   homeTeamId: string | null;
@@ -19,6 +30,8 @@ export type Match = {
   status: "FINISHED" | "SCHEDULED" | "IN_PLAY";
   stage: string;
   utcDate: string;
+  events?: MatchEvent[];
+  fact?: string;
 };
 
 export type TeamStanding = {

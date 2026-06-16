@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { flagUrl, teamById, teams } from "@/lib/teams";
-import type { GroupData, GroupStanding, Match, Pick, TeamState } from "@/lib/types";
+import type { GroupData, GroupStanding, Match, MatchEvent, Pick, TeamState } from "@/lib/types";
 
 const emptyGroup: GroupData = {
   picks: [],
@@ -39,10 +39,31 @@ function formatMatchDate(value: string) {
   }).format(date);
 }
 
-function MatchCard({ match }: { match: Match }) {
+function MatchCard({
+  match,
+  active,
+  onSelect,
+}: {
+  match: Match;
+  active: boolean;
+  onSelect: () => void;
+}) {
   const isFinished = match.status === "FINISHED";
+  const eventCount = match.events?.length ?? 0;
   return (
-    <article className="match-card">
+    <article
+      className={`match-card ${active ? "active" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={active}
+      onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+    >
       <div className="match-meta">
         <span>{formatStage(match.stage)}</span>
         <span className={match.status === "IN_PLAY" ? "live-dot" : ""}>
@@ -58,6 +79,70 @@ function MatchCard({ match }: { match: Match }) {
         <Flag teamId={match.awayTeamId} name={match.awayName} />
         <strong>{match.awayName}</strong>
         <b>{isFinished || match.status === "IN_PLAY" ? match.awayScore ?? "-" : ""}</b>
+      </div>
+      <span className="match-detail-hint">{active ? "Hide details" : eventCount ? `${eventCount} events` : "Match notes"}</span>
+    </article>
+  );
+}
+
+function fallbackMatchFact(match: Match) {
+  if (match.status === "SCHEDULED") return `Kickoff details will appear once ${match.homeName} vs ${match.awayName} starts.`;
+  if (match.homeScore !== null && match.awayScore !== null) {
+    const goals = match.homeScore + match.awayScore;
+    return `${match.stage} finished with ${goals} total goal${goals === 1 ? "" : "s"}.`;
+  }
+  return "More match notes will appear when the public feed publishes them.";
+}
+
+function eventIcon(type: MatchEvent["type"]) {
+  if (type === "goal") return "G";
+  if (type === "red-card") return "R";
+  if (type === "yellow-card") return "Y";
+  return "•";
+}
+
+function EventList({ title, events, empty }: { title: string; events: MatchEvent[]; empty: string }) {
+  return (
+    <div className="event-list">
+      <h4>{title}</h4>
+      {events.length ? (
+        events.map((event, index) => (
+          <div className={`event-row ${event.type}`} key={`${event.minute}-${event.playerName}-${index}`}>
+            <span className="event-icon">{eventIcon(event.type)}</span>
+            <div>
+              <strong>{event.playerName}</strong>
+              <span>{event.minute} · {event.teamName}</span>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p>{empty}</p>
+      )}
+    </div>
+  );
+}
+
+function MatchDetailPanel({ match }: { match: Match }) {
+  const events = match.events ?? [];
+  const goals = events.filter((event) => event.type === "goal");
+  const cards = events.filter((event) => event.type === "yellow-card" || event.type === "red-card");
+
+  return (
+    <article className="match-detail-panel">
+      <div className="match-detail-header">
+        <div>
+          <span>Match notebook</span>
+          <h3>{match.homeName} vs {match.awayName}</h3>
+        </div>
+        <b>{match.status === "IN_PLAY" ? "Live" : formatMatchDate(match.utcDate)}</b>
+      </div>
+      <div className="match-fact">
+        <span>Interesting bit</span>
+        <strong>{match.fact ?? fallbackMatchFact(match)}</strong>
+      </div>
+      <div className="event-grid">
+        <EventList title="Scorers" events={goals} empty={match.status === "SCHEDULED" ? "No scorers yet." : "No scorers listed in the feed yet."} />
+        <EventList title="Cards" events={cards} empty={match.status === "SCHEDULED" ? "No cards yet." : "No cards listed in the feed yet."} />
       </div>
     </article>
   );
@@ -279,6 +364,7 @@ export function WorldCupDashboard() {
   const [paymentName, setPaymentName] = useState("");
   const [paymentPaid, setPaymentPaid] = useState("true");
   const [showGroupTables, setShowGroupTables] = useState(false);
+  const [selectedMatchId, setSelectedMatchId] = useState("");
 
   const loadGroup = useCallback(async (code: string, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -338,11 +424,19 @@ export function WorldCupDashboard() {
 
     return latest;
   }, [group.games]);
+  const recentGames = useMemo(() => group.games.slice(0, 6), [group.games]);
+  const selectedMatch = useMemo(
+    () => recentGames.find((match) => match.id === selectedMatchId) ?? null,
+    [recentGames, selectedMatchId]
+  );
   const groupStandingByLetter = useMemo(() => {
     const standings = new Map<string, GroupStanding>();
     for (const standing of group.standings) standings.set(standing.group, standing);
     return standings;
   }, [group.standings]);
+  useEffect(() => {
+    if (selectedMatchId && !recentGames.some((match) => match.id === selectedMatchId)) setSelectedMatchId("");
+  }, [recentGames, selectedMatchId]);
   useEffect(() => {
     if (!paymentName && picks[0]) setPaymentName(picks[0].name.toLocaleLowerCase("en-US"));
     if (paymentName && !picks.some((pick) => pick.name.toLocaleLowerCase("en-US") === paymentName)) {
@@ -503,7 +597,23 @@ export function WorldCupDashboard() {
             <span className="updated">{group.dataSource} · Updated {new Date(group.updatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
           </div>
           {group.games.length ? (
-            <div className="matches-strip">{group.games.slice(0, 6).map((match) => <MatchCard key={match.id} match={match} />)}</div>
+            <>
+              <div className="matches-strip">
+                {recentGames.map((match) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    active={selectedMatchId === match.id}
+                    onSelect={() => setSelectedMatchId((current) => current === match.id ? "" : match.id)}
+                  />
+                ))}
+              </div>
+              {selectedMatch ? (
+                <MatchDetailPanel match={selectedMatch} />
+              ) : (
+                <div className="match-detail-empty">Tap a match to see scorers, cards, and one quick match note.</div>
+              )}
+            </>
           ) : (
             <div className="empty-state small"><strong>No scores yet.</strong><span>The organizer can sync or add the first result in Admin controls.</span></div>
           )}

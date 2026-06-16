@@ -1,5 +1,5 @@
 import { findTeamId, teams } from "./teams";
-import type { GroupStanding, Match, TeamStanding } from "./types";
+import type { GroupStanding, Match, MatchEvent, MatchEventType, TeamStanding } from "./types";
 
 const ESPN_WORLD_CUP_URL =
   "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=2026&limit=200";
@@ -9,10 +9,27 @@ type EspnCompetitor = {
   score?: string;
   winner?: boolean;
   team: {
+    id?: string;
     displayName?: string;
     shortDisplayName?: string;
     abbreviation?: string;
   };
+};
+
+type EspnDetail = {
+  type?: { text?: string };
+  clock?: { displayValue?: string };
+  team?: { id?: string };
+  scoringPlay?: boolean;
+  redCard?: boolean;
+  yellowCard?: boolean;
+  penaltyKick?: boolean;
+  ownGoal?: boolean;
+  athletesInvolved?: Array<{
+    displayName?: string;
+    shortName?: string;
+    fullName?: string;
+  }>;
 };
 
 type EspnEvent = {
@@ -28,6 +45,7 @@ type EspnEvent = {
       };
     };
     competitors?: EspnCompetitor[];
+    details?: EspnDetail[];
   }>;
 };
 
@@ -74,6 +92,88 @@ function sortGames(games: Match[]) {
     .slice(0, 12);
 
   return [...live, ...finished, ...upcoming].slice(0, 24);
+}
+
+function matchEventType(detail: EspnDetail): MatchEventType | null {
+  const text = detail.type?.text ?? "";
+  if (detail.scoringPlay || /goal|penalty.*scored/i.test(text)) return "goal";
+  if (detail.redCard || /red card/i.test(text)) return "red-card";
+  if (detail.yellowCard || /yellow card/i.test(text)) return "yellow-card";
+  return null;
+}
+
+function playerName(detail: EspnDetail) {
+  const athlete = detail.athletesInvolved?.[0];
+  return athlete?.displayName ?? athlete?.fullName ?? athlete?.shortName ?? "Unknown player";
+}
+
+function eventDescription(type: MatchEventType, detail: EspnDetail, player: string, team: string) {
+  if (type === "goal") {
+    const notes = [
+      detail.penaltyKick ? "penalty" : "",
+      detail.ownGoal ? "own goal" : "",
+    ].filter(Boolean);
+    return `${player} scored for ${team}${notes.length ? ` (${notes.join(", ")})` : ""}.`;
+  }
+  if (type === "yellow-card") return `${player} was booked for ${team}.`;
+  if (type === "red-card") return `${player} was sent off for ${team}.`;
+  return `${player} was involved for ${team}.`;
+}
+
+function matchEvents(details: EspnDetail[] | undefined, competitors: EspnCompetitor[]) {
+  const teamByEspnId = new Map<string, { id: string | null; name: string }>();
+  for (const competitor of competitors) {
+    if (!competitor.team.id) continue;
+    const name = teamName(competitor);
+    teamByEspnId.set(competitor.team.id, { id: findTeamId(name), name });
+  }
+
+  return (details ?? [])
+    .map<MatchEvent | null>((detail) => {
+      const type = matchEventType(detail);
+      if (!type) return null;
+
+      const team = teamByEspnId.get(detail.team?.id ?? "") ?? { id: null, name: "Unknown team" };
+      const player = playerName(detail);
+      return {
+        type,
+        minute: detail.clock?.displayValue ?? "-",
+        teamId: team.id,
+        teamName: team.name,
+        playerName: player,
+        description: eventDescription(type, detail, player, team.name),
+      };
+    })
+    .filter((event): event is MatchEvent => Boolean(event))
+    .slice(0, 18);
+}
+
+function matchFact(match: Match, events: MatchEvent[]) {
+  const goals = events.filter((event) => event.type === "goal");
+  const cards = events.filter((event) => event.type === "yellow-card" || event.type === "red-card");
+
+  if (match.status === "SCHEDULED") {
+    return `${match.homeName} and ${match.awayName} are next up in ${match.stage}.`;
+  }
+
+  if (goals[0]) {
+    return `${goals[0].playerName} opened the scoring for ${goals[0].teamName} in the ${goals[0].minute}.`;
+  }
+
+  if (cards.length) {
+    return `${cards.length} card${cards.length === 1 ? "" : "s"} shown, but no recorded scorer in the feed yet.`;
+  }
+
+  if (match.homeScore !== null && match.awayScore !== null) {
+    const totalGoals = match.homeScore + match.awayScore;
+    if (totalGoals === 0) return `A tense ${match.stage} scoreline: no goals between ${match.homeName} and ${match.awayName}.`;
+    if (match.homeScore === match.awayScore) return `${match.homeName} and ${match.awayName} shared ${totalGoals} goals.`;
+    const winner = match.homeScore > match.awayScore ? match.homeName : match.awayName;
+    const margin = Math.abs(match.homeScore - match.awayScore);
+    return `${winner} won by ${margin} goal${margin === 1 ? "" : "s"} in ${match.stage}.`;
+  }
+
+  return `Match notes will fill in as the public feed publishes events.`;
 }
 
 function isGroupMatch(match: Match) {
@@ -190,7 +290,8 @@ export async function fetchWorldCupFeed(): Promise<WorldCupFeed> {
       if (away.winner === false && home.winner === true && awayTeamId) eliminatedTeamIds.add(awayTeamId);
     }
 
-    return [{
+    const events = matchEvents(competition?.details, competitors);
+    const match: Match = {
       id: `espn-${event.id}`,
       homeTeamId,
       homeName,
@@ -201,7 +302,11 @@ export async function fetchWorldCupFeed(): Promise<WorldCupFeed> {
       status,
       stage: matchStage,
       utcDate: event.date,
-    }];
+      events,
+    };
+    match.fact = matchFact(match, events);
+
+    return [match];
   });
 
   return {
