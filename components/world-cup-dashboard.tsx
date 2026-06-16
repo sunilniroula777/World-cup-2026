@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { flagUrl, teamById, teams, type Team } from "@/lib/teams";
-import type { GroupData, GroupStanding, Match, Pick, TeamStanding, TeamState } from "@/lib/types";
+import { flagUrl, teamById, teams } from "@/lib/teams";
+import type { GroupData, GroupStanding, Match, Pick, TeamState } from "@/lib/types";
 
 const emptyGroup: GroupData = {
   picks: [],
@@ -99,30 +99,6 @@ function banterLine(name: string, teamName: string) {
   return banterLines[seed % banterLines.length];
 }
 
-type HeroCaptainTeam = Team & { pickedBy: string };
-
-function captainInitials(name: string) {
-  return name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
-}
-
-function HeroCaptainWall({ selectedTeams }: { selectedTeams: HeroCaptainTeam[] }) {
-  if (!selectedTeams.length) return null;
-
-  return (
-    <div className="captain-wall" aria-hidden="true">
-      {selectedTeams.slice(0, 12).map((team, index) => (
-        <div className={`captain-tile tile-${index % 6}`} key={team.id}>
-          <img className="captain-flag" src={flagUrl(team.flagCode)} alt="" />
-          <div className="captain-face">{captainInitials(team.captain)}</div>
-          <span>{team.shortName}</span>
-          <strong>{team.captain}</strong>
-          <small>{team.name} · {team.pickedBy}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function GroupTables({ standings }: { standings: GroupStanding[] }) {
   if (!standings.length) {
     return <div className="empty-state small"><strong>No table yet.</strong><span>Group standings appear when the public feed is available.</span></div>;
@@ -131,7 +107,7 @@ function GroupTables({ standings }: { standings: GroupStanding[] }) {
   return (
     <div className="standings-grid">
       {standings.map((standing) => (
-        <article className="standing-card" key={standing.group}>
+        <article className={`standing-card group-${standing.group.toLowerCase()}`} key={standing.group}>
           <h3>Group {standing.group}</h3>
           <div className="standing-head">
             <span>Team</span><span>P</span><span>GD</span><span>Pts</span>
@@ -139,7 +115,7 @@ function GroupTables({ standings }: { standings: GroupStanding[] }) {
           {standing.rows.map((row) => {
             const team = teamById.get(row.teamId);
             return (
-              <div className="standing-row" key={row.teamId}>
+              <div className={`standing-row ${row.rank <= 2 ? "advance" : ""}`} key={row.teamId}>
                 <strong>{row.rank}. {team?.shortName ?? row.teamName}</strong>
                 <span>{row.played}</span>
                 <span>{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</span>
@@ -158,14 +134,15 @@ function PickCard({
   state,
   lastResult,
   nextMatch,
-  standing,
+  groupStanding,
 }: {
   pick: Pick;
   state: TeamState;
   lastResult?: Match;
   nextMatch?: Match;
-  standing?: TeamStanding;
+  groupStanding?: GroupStanding;
 }) {
+  const [isFlipped, setIsFlipped] = useState(false);
   const team = teamById.get(pick.teamId);
   if (!team) return null;
   const initials = pick.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
@@ -176,49 +153,103 @@ function PickCard({
   const nextMatchText = nextMatch ? matchLabel(nextMatch) : "No fixture yet";
   const nextOpponentText = nextMatch ? `vs ${matchOpponent(team.id, nextMatch)}` : "Waiting for schedule";
   const roastText = banterLine(pick.name, team.name);
+  const standingRowsByTeam = new Map(groupStanding?.rows.map((row) => [row.teamId, row]) ?? []);
+  const teamsInGroup = teams.filter((candidate) => candidate.group === team.group);
+  const groupRows = teamsInGroup
+    .map((candidate, index) => ({
+      team: candidate,
+      standing: standingRowsByTeam.get(candidate.id),
+      rank: standingRowsByTeam.get(candidate.id)?.rank ?? index + 1,
+    }))
+    .sort((a, b) => a.rank - b.rank || a.team.name.localeCompare(b.team.name));
+
+  function toggleFlip() {
+    setIsFlipped((flipped) => !flipped);
+  }
 
   return (
-    <article className={`pick-card ${state} ${paymentState}`}>
-      <div className="pick-card-top">
-        <div className="avatar">{initials}</div>
-        <div>
-          <span className="picked-by">Picked by</span>
-          <h3>{pick.name}</h3>
+    <article
+      className={`pick-card group-${team.group.toLowerCase()} ${state} ${paymentState} ${isFlipped ? "flipped" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`${pick.name}'s ${team.name} card. ${isFlipped ? "Showing group table" : "Showing pick details"}.`}
+      aria-pressed={isFlipped}
+      onClick={toggleFlip}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          toggleFlip();
+        }
+      }}
+    >
+      <div className="pick-card-inner">
+        <div className="pick-face pick-front" aria-hidden={isFlipped}>
+          <div className="pick-card-top">
+            <div className="avatar">{initials}</div>
+            <div>
+              <span className="picked-by">Picked by</span>
+              <h3>{pick.name}</h3>
+            </div>
+            <span className="state-pill">{statusLabel}</span>
+          </div>
+          <div className="country-lockup">
+            <Flag teamId={team.id} name={team.name} />
+            <div>
+              <span>Group {team.group}</span>
+              <h2>{team.name}</h2>
+            </div>
+          </div>
+          <div className="captain-row">
+            <span>Captain</span>
+            <strong>{team.captain}</strong>
+          </div>
+          <div className="result-row">
+            <span>Last result</span>
+            <strong>{resultText}</strong>
+            <small>{opponentText}</small>
+          </div>
+          <div className="result-row">
+            <span>Next match</span>
+            <strong>{nextMatchText}</strong>
+            <small>{nextOpponentText}</small>
+          </div>
+          <span className="flip-hint">Tap to view Group {team.group}</span>
+          {state === "eliminated" && (
+            <div className="banter-strip">
+              <strong>Friendly banter</strong>
+              <span>{roastText}</span>
+            </div>
+          )}
         </div>
-        <span className="state-pill">{statusLabel}</span>
-      </div>
-      <div className="country-lockup">
-        <Flag teamId={team.id} name={team.name} />
-        <div>
-          <span>Group {team.group}</span>
-          <h2>{team.name}</h2>
+
+        <div className="pick-face pick-back" aria-hidden={!isFlipped}>
+          <div className="pick-back-top">
+            <div>
+              <span>Group {team.group}</span>
+              <h3>{team.name}'s road</h3>
+            </div>
+            <Flag teamId={team.id} name={team.name} />
+          </div>
+          <div className="group-back-head">
+            <span>Team</span><span>P</span><span>GD</span><span>Pts</span>
+          </div>
+          <div className="group-back-table">
+            {groupRows.map((row) => (
+              <div className={`group-back-row ${row.team.id === team.id ? "selected" : ""}`} key={row.team.id}>
+                <div className="group-back-team">
+                  <Flag teamId={row.team.id} name={row.team.name} />
+                  <strong>{row.rank}. {row.team.shortName}</strong>
+                  <small>{row.team.name}</small>
+                </div>
+                <span>{row.standing?.played ?? "-"}</span>
+                <span>{row.standing ? (row.standing.goalDifference > 0 ? `+${row.standing.goalDifference}` : row.standing.goalDifference) : "-"}</span>
+                <b>{row.standing?.points ?? "-"}</b>
+              </div>
+            ))}
+          </div>
+          <span className="flip-hint back-hint">Tap to return to {pick.name}'s pick</span>
         </div>
       </div>
-      <div className="captain-row">
-        <span>Captain</span>
-        <strong>{team.captain}</strong>
-      </div>
-      <div className="result-row">
-        <span>Group table</span>
-        <strong>{standing ? `#${standing.rank} • ${standing.points} pts` : "No table yet"}</strong>
-        <small>{standing ? `${standing.played} played • GD ${standing.goalDifference > 0 ? `+${standing.goalDifference}` : standing.goalDifference}` : `Group ${team.group}`}</small>
-      </div>
-      <div className="result-row">
-        <span>Last result</span>
-        <strong>{resultText}</strong>
-        <small>{opponentText}</small>
-      </div>
-      <div className="result-row">
-        <span>Next match</span>
-        <strong>{nextMatchText}</strong>
-        <small>{nextOpponentText}</small>
-      </div>
-      {state === "eliminated" && (
-        <div className="banter-strip">
-          <strong>Friendly banter</strong>
-          <span>{roastText}</span>
-        </div>
-      )}
     </article>
   );
 }
@@ -247,6 +278,7 @@ export function WorldCupDashboard() {
   const [awayScore, setAwayScore] = useState("0");
   const [paymentName, setPaymentName] = useState("");
   const [paymentPaid, setPaymentPaid] = useState("true");
+  const [showGroupTables, setShowGroupTables] = useState(false);
 
   const loadGroup = useCallback(async (code: string, quiet = false) => {
     if (!quiet) setLoading(true);
@@ -293,20 +325,6 @@ export function WorldCupDashboard() {
   const expectedPool = picks.length * group.entryFee;
   const entriesArePaused = group.storageMode === "temporary";
   const showAdminDiagnostics = adminPin.trim().length > 0;
-  const selectedCaptainTeams = useMemo(() => {
-    const seen = new Set<string>();
-    const selected: HeroCaptainTeam[] = [];
-
-    for (const pick of picks) {
-      if (seen.has(pick.teamId)) continue;
-      const team = teamById.get(pick.teamId);
-      if (!team) continue;
-      selected.push({ ...team, pickedBy: pick.name });
-      seen.add(pick.teamId);
-    }
-
-    return selected;
-  }, [picks]);
   const latestFinishedMatchByTeam = useMemo(() => {
     const latest = new Map<string, Match>();
     const finishedMatches = group.games
@@ -320,14 +338,11 @@ export function WorldCupDashboard() {
 
     return latest;
   }, [group.games]);
-  const standingByTeam = useMemo(() => {
-    const standings = new Map<string, TeamStanding>();
-    for (const groupStanding of group.standings) {
-      for (const row of groupStanding.rows) standings.set(row.teamId, row);
-    }
+  const groupStandingByLetter = useMemo(() => {
+    const standings = new Map<string, GroupStanding>();
+    for (const standing of group.standings) standings.set(standing.group, standing);
     return standings;
   }, [group.standings]);
-
   useEffect(() => {
     if (!paymentName && picks[0]) setPaymentName(picks[0].name.toLocaleLowerCase("en-US"));
     if (paymentName && !picks.some((pick) => pick.name.toLocaleLowerCase("en-US") === paymentName)) {
@@ -453,8 +468,7 @@ export function WorldCupDashboard() {
       </header>
 
       <div className="page" id="top">
-        <section className={`hero ${selectedCaptainTeams.length ? "has-captains" : ""}`}>
-          <HeroCaptainWall selectedTeams={selectedCaptainTeams} />
+        <section className="hero">
           <div className="hero-copy">
             <p className="eyebrow light">World Cup 2026</p>
             <h1>Your World<br /><em>Cup pool</em></h1>
@@ -497,15 +511,7 @@ export function WorldCupDashboard() {
 
         <section className="content-section">
           <div className="section-heading">
-            <div><span className="step-number">03</span><h2>Group tables</h2></div>
-            <span className="updated">Updated from finished group games</span>
-          </div>
-          <GroupTables standings={group.standings} />
-        </section>
-
-        <section className="content-section">
-          <div className="section-heading">
-            <div><span className="step-number">04</span><h2>The circle</h2></div>
+            <div><span className="step-number">03</span><h2>The circle</h2></div>
             <div className="legend"><span><i className="alive-dot" />Still in</span><span><i className="out-dot" />Eliminated</span></div>
           </div>
           {picks.length ? (
@@ -516,11 +522,38 @@ export function WorldCupDashboard() {
                 state={group.statuses[pick.teamId] ?? "alive"}
                 lastResult={latestFinishedMatchByTeam.get(pick.teamId)}
                 nextMatch={group.nextMatches[pick.teamId]}
-                standing={standingByTeam.get(pick.teamId)}
+                groupStanding={groupStandingByLetter.get(teamById.get(pick.teamId)?.group ?? "")}
               />
             ))}</div>
           ) : (
             <div className="empty-state"><span className="empty-number">01</span><strong>Be the first brave soul.</strong><span>Add your pick above and share the group code with the others.</span></div>
+          )}
+        </section>
+
+        <section className="content-section group-section">
+          <div className="section-heading">
+            <div><span className="step-number">04</span><h2>Group tables</h2></div>
+            <button
+              className="toggle-button"
+              type="button"
+              aria-expanded={showGroupTables}
+              onClick={() => setShowGroupTables((visible) => !visible)}
+            >
+              {showGroupTables ? "Hide tables" : "Show tables"}
+            </button>
+          </div>
+          {showGroupTables ? (
+            <GroupTables standings={group.standings} />
+          ) : (
+            <div className="standings-teaser">
+              <div>
+                <strong>Group standings live here.</strong>
+                <span>Tap the button to open the color-coded tables after checking everyone&apos;s picks.</span>
+              </div>
+              <div className="group-chips" aria-hidden="true">
+                {"ABCDEFGHIJKL".split("").map((groupLetter) => <span className={`group-${groupLetter.toLowerCase()}`} key={groupLetter}>{groupLetter}</span>)}
+              </div>
+            </div>
           )}
         </section>
 
