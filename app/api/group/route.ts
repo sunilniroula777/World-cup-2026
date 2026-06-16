@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWorldCupFeed } from "@/lib/espn";
-import { getGames, getPicks, getStatuses, setTeamStatus, storageMode, usingCloudStorage } from "@/lib/store";
+import { getGames, getPicks, getSettings, getStatuses, setTeamStatus, storageMode, usingCloudStorage } from "@/lib/store";
 import { ENTRY_FEE, isValidGroupCode, MAX_FRIENDS, normalizeCode } from "@/lib/server";
 import type { GroupStanding, Match } from "@/lib/types";
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     console.error("World Cup feed unavailable; using stored games.", error);
   }
 
-  const [picks, statuses] = await Promise.all([getPicks(code), getStatuses(code)]);
+  const [picks, statuses, settings] = await Promise.all([getPicks(code), getStatuses(code), getSettings(code)]);
 
   return NextResponse.json({
     picks,
@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     nextMatches,
     maxFriends: MAX_FRIENDS,
     entryFee: ENTRY_FEE,
+    entriesLocked: Boolean(settings.entriesLocked),
     usingCloudStorage,
     storageMode,
     scoreSyncEnabled: true,

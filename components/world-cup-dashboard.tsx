@@ -12,6 +12,7 @@ const emptyGroup: GroupData = {
   nextMatches: {},
   maxFriends: 20,
   entryFee: 50,
+  entriesLocked: false,
   usingCloudStorage: false,
   storageMode: "temporary",
   scoreSyncEnabled: false,
@@ -359,6 +360,7 @@ export function WorldCupDashboard() {
   const [paymentName, setPaymentName] = useState("");
   const [paymentPaid, setPaymentPaid] = useState("true");
   const [removeName, setRemoveName] = useState("");
+  const [entriesLockedChoice, setEntriesLockedChoice] = useState("false");
   const [showGroupTables, setShowGroupTables] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState("");
 
@@ -406,6 +408,7 @@ export function WorldCupDashboard() {
   const collectedPool = paidCount * group.entryFee;
   const expectedPool = picks.length * group.entryFee;
   const entriesArePaused = group.storageMode === "temporary";
+  const entriesAreLocked = Boolean(group.entriesLocked);
   const showAdminDiagnostics = adminPin.trim().length > 0;
   const latestFinishedMatchByTeam = useMemo(() => {
     const latest = new Map<string, Match>();
@@ -443,6 +446,10 @@ export function WorldCupDashboard() {
       setRemoveName(picks[0]?.name.toLocaleLowerCase("en-US") ?? "");
     }
   }, [paymentName, picks, removeName]);
+
+  useEffect(() => {
+    setEntriesLockedChoice(group.entriesLocked ? "true" : "false");
+  }, [group.entriesLocked]);
 
   async function submitCode(event: FormEvent) {
     event.preventDefault();
@@ -537,6 +544,18 @@ export function WorldCupDashboard() {
     }
   }
 
+  async function updateEntrySettings(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await apiPost("/api/admin/entries", { adminPin, entriesLocked: entriesLockedChoice === "true" }, entriesLockedChoice === "true" ? "New entries locked." : "New entries opened.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not update entry settings.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (!groupCode) {
     return (
       <main className="gate-shell">
@@ -599,6 +618,7 @@ export function WorldCupDashboard() {
             <button className="primary-button" disabled={loading || !name.trim() || entriesArePaused}>{loading ? "Saving..." : "Lock it in"}</button>
           </form>
           {entriesArePaused && <p className="setup-note">The pool is almost ready. The organizer will open picks shortly.</p>}
+          {entriesAreLocked && !entriesArePaused && <p className="setup-note locked">New entries are locked. Existing players can still update using the same name.</p>}
         </section>
 
         {(notice || error) && <div className={`message-bar ${error ? "error" : "success"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
@@ -731,6 +751,15 @@ export function WorldCupDashboard() {
                 <p>Refresh the public ESPN feed now. The dashboard also checks automatically every 30 seconds.</p>
                 <button type="button" onClick={syncGames} disabled={loading || !adminPin}>Refresh scores now</button>
               </div>
+              <form onSubmit={updateEntrySettings} className="admin-card">
+                <h3>Entry lock</h3>
+                <p>Close the pool to new names once your friends are in. Existing names can still update picks.</p>
+                <select value={entriesLockedChoice} onChange={(event) => setEntriesLockedChoice(event.target.value)}>
+                  <option value="false">Open new entries</option>
+                  <option value="true">Lock new entries</option>
+                </select>
+                <button disabled={loading || !adminPin}>Save entry setting</button>
+              </form>
               <form onSubmit={updatePayment} className="admin-card">
                 <h3>Pool payment</h3>
                 <select value={paymentName} onChange={(event) => setPaymentName(event.target.value)} disabled={!picks.length}>

@@ -74,6 +74,7 @@ button { cursor: pointer; }
 .primary-button:hover { background: #c4ff40; }
 button:disabled { opacity: .55; cursor: not-allowed; }
 .setup-note { margin: 14px 0 0; color: var(--muted); font-size: 12px; }
+.setup-note.locked { color: #6f5818; font-weight: 700; }
 
 .message, .message-bar { font-size: 13px; }
 .message.error { color: #a33030; }

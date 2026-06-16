@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { teamById } from "@/lib/teams";
-import { pickCount, pickExists, savePick, storageMode } from "@/lib/store";
+import { getSettings, pickCount, pickExists, savePick, storageMode } from "@/lib/store";
 import { apiError, isValidGroupCode, MAX_FRIENDS, normalizeCode } from "@/lib/server";
 
 export async function POST(request: NextRequest) {
@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
 
   const normalizedName = name.toLocaleLowerCase("en-US");
   const exists = await pickExists(code, normalizedName);
+  const settings = await getSettings(code);
+  if (!exists && settings.entriesLocked) {
+    return apiError("New entries are locked by the organizer. Existing players can still update their picks.", 423);
+  }
   if (!exists && (await pickCount(code)) >= MAX_FRIENDS) {
     return apiError("This group already has 20 friends. Existing friends can still update their picks.", 409);
   }

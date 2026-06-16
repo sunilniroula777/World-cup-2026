@@ -1,7 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Match, Pick, TeamState } from "./types";
+import type { GroupSettings, Match, Pick, TeamState } from "./types";
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
@@ -15,12 +15,14 @@ type MemoryStore = {
   picks: Map<string, Map<string, Pick>>;
   statuses: Map<string, Map<string, TeamState>>;
   games: Map<string, Match[]>;
+  settings: Map<string, GroupSettings>;
 };
 
 type StoredGroup = {
   picks: Record<string, Pick>;
   statuses: Record<string, TeamState>;
   games: Match[];
+  settings?: GroupSettings;
 };
 
 type FileStore = {
@@ -32,6 +34,7 @@ const memory = globalStore.__cupCircleStore ?? {
   picks: new Map(),
   statuses: new Map(),
   games: new Map(),
+  settings: new Map(),
 };
 globalStore.__cupCircleStore = memory;
 
@@ -70,7 +73,7 @@ async function updateLocalStore<T = void>(change: (store: FileStore) => T) {
 }
 
 function emptyGroup(): StoredGroup {
-  return { picks: {}, statuses: {}, games: [] };
+  return { picks: {}, statuses: {}, games: [], settings: {} };
 }
 
 function ensureGroup(store: FileStore, code: string) {
@@ -82,7 +85,9 @@ function ensureGroup(store: FileStore, code: string) {
 async function getLocalGroup(code: string) {
   await fileWriteQueue;
   const store = await readLocalStore();
-  return store.groups[groupKey(code)] ?? emptyGroup();
+  const group = store.groups[groupKey(code)] ?? emptyGroup();
+  group.settings ??= {};
+  return group;
 }
 
 export const usingCloudStorage = Boolean(redis);
@@ -227,4 +232,25 @@ export async function setGames(code: string, games: Match[]) {
     return;
   }
   memory.games.set(code, recent);
+}
+
+export async function getSettings(code: string): Promise<GroupSettings> {
+  if (redis) return (await redis.get<GroupSettings>(key(code, "settings"))) ?? {};
+  if (useLocalFile) return (await getLocalGroup(code)).settings ?? {};
+  return memory.settings.get(code) ?? {};
+}
+
+export async function setEntriesLocked(code: string, entriesLocked: boolean) {
+  const nextSettings = { ...(await getSettings(code)), entriesLocked };
+  if (redis) {
+    await redis.set(key(code, "settings"), nextSettings);
+    return;
+  }
+  if (useLocalFile) {
+    await updateLocalStore((store) => {
+      ensureGroup(store, code).settings = nextSettings;
+    });
+    return;
+  }
+  memory.settings.set(code, nextSettings);
 }

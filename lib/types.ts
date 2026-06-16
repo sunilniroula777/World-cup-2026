@@ -8,6 +8,10 @@ export type Pick = {
   updatedAt: string;
 };
 
+export type GroupSettings = {
+  entriesLocked?: boolean;
+};
+
 export type MatchEventType = "goal" | "yellow-card" | "red-card" | "other";
 
 export type MatchEvent = {
@@ -62,6 +66,7 @@ export type GroupData = {
   nextMatches: Record<string, Match>;
   maxFriends: number;
   entryFee: number;
+  entriesLocked: boolean;
   usingCloudStorage: boolean;
   storageMode?: "cloud" | "local-file" | "temporary";
   scoreSyncEnabled: boolean;
