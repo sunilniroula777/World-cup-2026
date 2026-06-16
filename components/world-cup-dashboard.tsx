@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { flagUrl, teamById, teams } from "@/lib/teams";
+import { countryFactForMatch, flagUrl, teamById, teams } from "@/lib/teams";
 import type { GroupData, GroupStanding, Match, MatchEvent, Pick, TeamState } from "@/lib/types";
 
 const emptyGroup: GroupData = {
@@ -86,12 +86,7 @@ function MatchCard({
 }
 
 function fallbackMatchFact(match: Match) {
-  if (match.status === "SCHEDULED") return `Kickoff details will appear once ${match.homeName} vs ${match.awayName} starts.`;
-  if (match.homeScore !== null && match.awayScore !== null) {
-    const goals = match.homeScore + match.awayScore;
-    return `${match.stage} finished with ${goals} total goal${goals === 1 ? "" : "s"}.`;
-  }
-  return "More match notes will appear when the public feed publishes them.";
+  return countryFactForMatch(match.homeTeamId, match.awayTeamId, match.id);
 }
 
 function eventIcon(type: MatchEvent["type"]) {
@@ -137,7 +132,7 @@ function MatchDetailPanel({ match }: { match: Match }) {
         <b>{match.status === "IN_PLAY" ? "Live" : formatMatchDate(match.utcDate)}</b>
       </div>
       <div className="match-fact">
-        <span>Interesting bit</span>
+        <span>Country fact</span>
         <strong>{match.fact ?? fallbackMatchFact(match)}</strong>
       </div>
       <div className="event-grid">

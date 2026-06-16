@@ -1,4 +1,4 @@
-import { findTeamId, teams } from "./teams";
+import { countryFactForMatch, findTeamId, teams } from "./teams";
 import type { GroupStanding, Match, MatchEvent, MatchEventType, TeamStanding } from "./types";
 
 const ESPN_WORLD_CUP_URL =
@@ -148,32 +148,8 @@ function matchEvents(details: EspnDetail[] | undefined, competitors: EspnCompeti
     .slice(0, 18);
 }
 
-function matchFact(match: Match, events: MatchEvent[]) {
-  const goals = events.filter((event) => event.type === "goal");
-  const cards = events.filter((event) => event.type === "yellow-card" || event.type === "red-card");
-
-  if (match.status === "SCHEDULED") {
-    return `${match.homeName} and ${match.awayName} are next up in ${match.stage}.`;
-  }
-
-  if (goals[0]) {
-    return `${goals[0].playerName} opened the scoring for ${goals[0].teamName} in the ${goals[0].minute}.`;
-  }
-
-  if (cards.length) {
-    return `${cards.length} card${cards.length === 1 ? "" : "s"} shown, but no recorded scorer in the feed yet.`;
-  }
-
-  if (match.homeScore !== null && match.awayScore !== null) {
-    const totalGoals = match.homeScore + match.awayScore;
-    if (totalGoals === 0) return `A tense ${match.stage} scoreline: no goals between ${match.homeName} and ${match.awayName}.`;
-    if (match.homeScore === match.awayScore) return `${match.homeName} and ${match.awayName} shared ${totalGoals} goals.`;
-    const winner = match.homeScore > match.awayScore ? match.homeName : match.awayName;
-    const margin = Math.abs(match.homeScore - match.awayScore);
-    return `${winner} won by ${margin} goal${margin === 1 ? "" : "s"} in ${match.stage}.`;
-  }
-
-  return `Match notes will fill in as the public feed publishes events.`;
+function matchFact(match: Match) {
+  return countryFactForMatch(match.homeTeamId, match.awayTeamId, match.id);
 }
 
 function isGroupMatch(match: Match) {
@@ -304,7 +280,7 @@ export async function fetchWorldCupFeed(): Promise<WorldCupFeed> {
       utcDate: event.date,
       events,
     };
-    match.fact = matchFact(match, events);
+    match.fact = matchFact(match);
 
     return [match];
   });

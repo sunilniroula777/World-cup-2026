@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, isValidAdminPin, isValidGroupCode, normalizeCode } from "@/lib/server";
-import { teamById } from "@/lib/teams";
+import { countryFactForMatch, teamById } from "@/lib/teams";
 import { getGames, setGames, storageMode } from "@/lib/store";
 import type { Match } from "@/lib/types";
 
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     stage: typeof body.stage === "string" && body.stage.trim() ? body.stage.trim() : "World Cup",
     utcDate: new Date().toISOString(),
   };
+  match.fact = countryFactForMatch(match.homeTeamId, match.awayTeamId, match.id);
 
   await setGames(code, [match, ...(await getGames(code))]);
   return NextResponse.json({ ok: true });
