@@ -61,12 +61,28 @@ function MatchCard({ match }: { match: Match }) {
   );
 }
 
-function PickCard({ pick, state }: { pick: Pick; state: TeamState }) {
+function teamResult(teamId: string, match: Match) {
+  const isHome = match.homeTeamId === teamId;
+  const teamScore = isHome ? match.homeScore : match.awayScore;
+  const opponentScore = isHome ? match.awayScore : match.homeScore;
+  if (teamScore === null || opponentScore === null) return "Result pending";
+  if (teamScore > opponentScore) return `Won ${teamScore}-${opponentScore}`;
+  if (teamScore < opponentScore) return `Lost ${teamScore}-${opponentScore}`;
+  return `Drew ${teamScore}-${opponentScore}`;
+}
+
+function teamOpponent(teamId: string, match: Match) {
+  return match.homeTeamId === teamId ? match.awayName : match.homeName;
+}
+
+function PickCard({ pick, state, lastResult }: { pick: Pick; state: TeamState; lastResult?: Match }) {
   const team = teamById.get(pick.teamId);
   if (!team) return null;
   const initials = pick.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
   const paymentState = pick.paid ? "paid" : "unpaid";
   const statusLabel = state === "eliminated" ? "Out" : pick.paid ? "Still in" : "Not paid";
+  const resultText = lastResult ? teamResult(team.id, lastResult) : "No result yet";
+  const opponentText = lastResult ? `vs ${teamOpponent(team.id, lastResult)}` : "Waiting for first match";
 
   return (
     <article className={`pick-card ${state} ${paymentState}`}>
@@ -88,6 +104,11 @@ function PickCard({ pick, state }: { pick: Pick; state: TeamState }) {
       <div className="captain-row">
         <span>Captain</span>
         <strong>{team.captain}</strong>
+      </div>
+      <div className="result-row">
+        <span>Last result</span>
+        <strong>{resultText}</strong>
+        <small>{opponentText}</small>
       </div>
     </article>
   );
@@ -161,6 +182,19 @@ export function WorldCupDashboard() {
   const paidCount = picks.filter((pick) => pick.paid).length;
   const collectedPool = paidCount * group.entryFee;
   const expectedPool = picks.length * group.entryFee;
+  const latestFinishedMatchByTeam = useMemo(() => {
+    const latest = new Map<string, Match>();
+    const finishedMatches = group.games
+      .filter((match) => match.status === "FINISHED")
+      .sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime());
+
+    for (const match of finishedMatches) {
+      if (match.homeTeamId && !latest.has(match.homeTeamId)) latest.set(match.homeTeamId, match);
+      if (match.awayTeamId && !latest.has(match.awayTeamId)) latest.set(match.awayTeamId, match);
+    }
+
+    return latest;
+  }, [group.games]);
 
   useEffect(() => {
     if (!paymentName && picks[0]) setPaymentName(picks[0].name.toLocaleLowerCase("en-US"));
@@ -338,7 +372,7 @@ export function WorldCupDashboard() {
             <div className="legend"><span><i className="alive-dot" />Still in</span><span><i className="out-dot" />Eliminated</span></div>
           </div>
           {picks.length ? (
-            <div className="picks-grid">{picks.map((pick) => <PickCard key={pick.name.toLowerCase()} pick={pick} state={group.statuses[pick.teamId] ?? "alive"} />)}</div>
+            <div className="picks-grid">{picks.map((pick) => <PickCard key={pick.name.toLowerCase()} pick={pick} state={group.statuses[pick.teamId] ?? "alive"} lastResult={latestFinishedMatchByTeam.get(pick.teamId)} />)}</div>
           ) : (
             <div className="empty-state"><span className="empty-number">01</span><strong>Be the first brave soul.</strong><span>Add your pick above and share the group code with the others.</span></div>
           )}

@@ -124,6 +124,10 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .country-lockup h2 { margin: 2px 0 0; font: 700 37px/.9 var(--font-display); text-transform: uppercase; }
 .captain-row { border-top: 1px solid rgba(22,35,27,.16); padding-top: 14px; display: flex; justify-content: space-between; font-size: 11px; }
 .captain-row span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 9px; }
+.result-row { border-top: 1px solid rgba(22,35,27,.16); margin-top: 14px; padding-top: 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 11px; }
+.result-row span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 9px; }
+.result-row strong { text-align: right; }
+.result-row small { grid-column: 1 / -1; color: var(--muted); text-align: right; }
 .empty-state { border: 1px dashed #b9b8af; min-height: 250px; display: grid; place-items: center; align-content: center; gap: 8px; color: var(--muted); text-align: center; }
 .empty-state.small { min-height: 150px; }
 .empty-state strong { color: var(--ink); }
