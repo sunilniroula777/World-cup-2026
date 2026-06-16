@@ -65,16 +65,18 @@ function PickCard({ pick, state }: { pick: Pick; state: TeamState }) {
   const team = teamById.get(pick.teamId);
   if (!team) return null;
   const initials = pick.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
+  const paymentState = pick.paid ? "paid" : "unpaid";
+  const statusLabel = state === "eliminated" ? "Out" : pick.paid ? "Still in" : "Not paid";
 
   return (
-    <article className={`pick-card ${state}`}>
+    <article className={`pick-card ${state} ${paymentState}`}>
       <div className="pick-card-top">
         <div className="avatar">{initials}</div>
         <div>
           <span className="picked-by">Picked by</span>
           <h3>{pick.name}</h3>
         </div>
-        <span className="state-pill">{state === "alive" ? "Still in" : "Out"}</span>
+        <span className="state-pill">{statusLabel}</span>
       </div>
       <div className="country-lockup">
         <Flag teamId={team.id} name={team.name} />
@@ -292,8 +294,9 @@ export function WorldCupDashboard() {
             <p>Green means the dream is alive. Gray means it is time to adopt a second team.</p>
           </div>
           <div className="hero-scoreboard">
+            <div><strong>${collectedPool}</strong><span>Prize pool</span></div>
             <div><strong>{picks.length}</strong><span>Friends in</span></div>
-            <div><strong>{aliveCount}</strong><span>Still alive</span></div>
+            <div><strong>{paidCount}/{picks.length}</strong><span>Paid entries</span></div>
             <div><strong>{group.maxFriends - picks.length}</strong><span>Spots left</span></div>
           </div>
         </section>

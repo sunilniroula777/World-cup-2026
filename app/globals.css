@@ -52,9 +52,10 @@ button { cursor: pointer; }
 .hero h1 { font-size: clamp(72px, 10vw, 138px); max-width: 760px; }
 .hero h1 em { color: var(--green-bright); font-style: normal; }
 .hero > div > p:last-child { color: rgba(255,255,255,.68); max-width: 520px; line-height: 1.6; }
-.hero-scoreboard { display: grid; grid-template-columns: repeat(3, 1fr); min-width: 360px; border: 1px solid rgba(255,255,255,.28); }
+.hero-scoreboard { display: grid; grid-template-columns: repeat(2, 1fr); min-width: 430px; border: 1px solid rgba(255,255,255,.28); }
 .hero-scoreboard div { padding: 20px; border-right: 1px solid rgba(255,255,255,.22); }
-.hero-scoreboard div:last-child { border: 0; }
+.hero-scoreboard div:nth-child(2n) { border-right: 0; }
+.hero-scoreboard div:nth-child(n + 3) { border-top: 1px solid rgba(255,255,255,.22); }
 .hero-scoreboard strong { display: block; font: 700 38px/1 var(--font-display); color: var(--green-bright); }
 .hero-scoreboard span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; margin-top: 7px; color: rgba(255,255,255,.7); }
 
@@ -107,14 +108,16 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .pick-card { min-height: 270px; padding: 22px; position: relative; overflow: hidden; transition: transform .2s ease; }
 .pick-card:hover { transform: translateY(-3px); }
 .pick-card.alive { background: var(--green-soft); border: 1px solid #b8d6ba; }
+.pick-card.alive.unpaid { background: #e0e1dd; border: 1px solid #c9cbc5; color: #737873; filter: grayscale(.75); }
 .pick-card.eliminated { background: #dddeda; border: 1px solid #cbccc7; color: #777c78; filter: grayscale(1); }
 .pick-card.eliminated::after { content: "ELIMINATED"; position: absolute; bottom: 48px; right: -38px; transform: rotate(-38deg); font: 800 34px/1 var(--font-display); color: rgba(60,65,61,.12); }
 .pick-card-top { display: flex; align-items: center; gap: 11px; }
 .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: white; font: 700 14px/1 var(--font-display); }
-.eliminated .avatar { background: #737873; }
+.eliminated .avatar, .unpaid .avatar { background: #737873; }
 .picked-by { display: block; text-transform: uppercase; letter-spacing: .1em; font-size: 8px; color: var(--muted); }
 .pick-card-top h3 { margin: 2px 0 0; font-size: 14px; }
 .state-pill { margin-left: auto; text-transform: uppercase; letter-spacing: .08em; font-size: 8px; font-weight: 800; padding: 6px 8px; background: rgba(255,255,255,.65); }
+.pick-card.alive.unpaid .state-pill { background: #fff0c7; color: #6f5818; }
 .country-lockup { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 17px; margin: 38px 0 28px; }
 .country-lockup .flag { width: 76px; }
 .country-lockup span { text-transform: uppercase; font-size: 9px; letter-spacing: .1em; color: var(--muted); }
