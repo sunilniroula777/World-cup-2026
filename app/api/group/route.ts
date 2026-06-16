@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchWorldCupFeed } from "@/lib/espn";
 import { getGames, getPicks, getStatuses, setTeamStatus, storageMode, usingCloudStorage } from "@/lib/store";
 import { ENTRY_FEE, isValidGroupCode, MAX_FRIENDS, normalizeCode } from "@/lib/server";
+import type { GroupStanding, Match } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,16 @@ export async function GET(request: NextRequest) {
   }
 
   let games = await getGames(code);
+  let standings: GroupStanding[] = [];
+  let nextMatches: Record<string, Match> = {};
   let updatedAt = new Date().toISOString();
   let dataSource = "Manual backup";
 
   try {
     const feed = await fetchWorldCupFeed();
     games = feed.games;
+    standings = feed.standings;
+    nextMatches = feed.nextMatches;
     updatedAt = feed.fetchedAt;
     dataSource = "ESPN public feed";
     await Promise.all(feed.eliminatedTeamIds.map((teamId) => setTeamStatus(code, teamId, "eliminated")));
@@ -31,6 +36,8 @@ export async function GET(request: NextRequest) {
     picks,
     statuses,
     games,
+    standings,
+    nextMatches,
     maxFriends: MAX_FRIENDS,
     entryFee: ENTRY_FEE,
     usingCloudStorage,

@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   const code = normalizeCode(body.code);
   if (!isValidGroupCode(code)) return apiError("That group code is not correct.", 401);
   if (storageMode === "temporary") {
-    return apiError("Storage is not connected yet. Add Upstash Redis in Vercel before friends submit picks.", 503);
+    return apiError("The pool is not open yet. Ask the organizer to finish setup.", 503);
   }
 
   const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";

@@ -1,13 +1,15 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { flagUrl, teamById, teams } from "@/lib/teams";
-import type { GroupData, Match, Pick, TeamState } from "@/lib/types";
+import { flagUrl, teamById, teams, type Team } from "@/lib/teams";
+import type { GroupData, GroupStanding, Match, Pick, TeamStanding, TeamState } from "@/lib/types";
 
 const emptyGroup: GroupData = {
   picks: [],
   statuses: {},
   games: [],
+  standings: [],
+  nextMatches: {},
   maxFriends: 20,
   entryFee: 50,
   usingCloudStorage: false,
@@ -75,7 +77,95 @@ function teamOpponent(teamId: string, match: Match) {
   return match.homeTeamId === teamId ? match.awayName : match.homeName;
 }
 
-function PickCard({ pick, state, lastResult }: { pick: Pick; state: TeamState; lastResult?: Match }) {
+function matchOpponent(teamId: string, match: Match) {
+  return match.homeTeamId === teamId ? match.awayName : match.homeName;
+}
+
+function matchLabel(match: Match) {
+  return match.status === "IN_PLAY" ? "Live now" : formatMatchDate(match.utcDate);
+}
+
+const banterLines = [
+  "Booked an early flight home.",
+  "VAR could not save this dream.",
+  "Group chat is about to be spicy.",
+  "The parade has been respectfully postponed.",
+  "Time to scout a backup bandwagon.",
+  "Their trophy charge is now a documentary.",
+];
+
+function banterLine(name: string, teamName: string) {
+  const seed = `${name}-${teamName}`.split("").reduce((total, letter) => total + letter.charCodeAt(0), 0);
+  return banterLines[seed % banterLines.length];
+}
+
+type HeroCaptainTeam = Team & { pickedBy: string };
+
+function captainInitials(name: string) {
+  return name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function HeroCaptainWall({ selectedTeams }: { selectedTeams: HeroCaptainTeam[] }) {
+  if (!selectedTeams.length) return null;
+
+  return (
+    <div className="captain-wall" aria-hidden="true">
+      {selectedTeams.slice(0, 12).map((team, index) => (
+        <div className={`captain-tile tile-${index % 6}`} key={team.id}>
+          <img className="captain-flag" src={flagUrl(team.flagCode)} alt="" />
+          <div className="captain-face">{captainInitials(team.captain)}</div>
+          <span>{team.shortName}</span>
+          <strong>{team.captain}</strong>
+          <small>{team.name} · {team.pickedBy}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GroupTables({ standings }: { standings: GroupStanding[] }) {
+  if (!standings.length) {
+    return <div className="empty-state small"><strong>No table yet.</strong><span>Group standings appear when the public feed is available.</span></div>;
+  }
+
+  return (
+    <div className="standings-grid">
+      {standings.map((standing) => (
+        <article className="standing-card" key={standing.group}>
+          <h3>Group {standing.group}</h3>
+          <div className="standing-head">
+            <span>Team</span><span>P</span><span>GD</span><span>Pts</span>
+          </div>
+          {standing.rows.map((row) => {
+            const team = teamById.get(row.teamId);
+            return (
+              <div className="standing-row" key={row.teamId}>
+                <strong>{row.rank}. {team?.shortName ?? row.teamName}</strong>
+                <span>{row.played}</span>
+                <span>{row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference}</span>
+                <b>{row.points}</b>
+              </div>
+            );
+          })}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function PickCard({
+  pick,
+  state,
+  lastResult,
+  nextMatch,
+  standing,
+}: {
+  pick: Pick;
+  state: TeamState;
+  lastResult?: Match;
+  nextMatch?: Match;
+  standing?: TeamStanding;
+}) {
   const team = teamById.get(pick.teamId);
   if (!team) return null;
   const initials = pick.name.split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase();
@@ -83,6 +173,9 @@ function PickCard({ pick, state, lastResult }: { pick: Pick; state: TeamState; l
   const statusLabel = state === "eliminated" ? "Out" : pick.paid ? "Still in" : "Not paid";
   const resultText = lastResult ? teamResult(team.id, lastResult) : "No result yet";
   const opponentText = lastResult ? `vs ${teamOpponent(team.id, lastResult)}` : "Waiting for first match";
+  const nextMatchText = nextMatch ? matchLabel(nextMatch) : "No fixture yet";
+  const nextOpponentText = nextMatch ? `vs ${matchOpponent(team.id, nextMatch)}` : "Waiting for schedule";
+  const roastText = banterLine(pick.name, team.name);
 
   return (
     <article className={`pick-card ${state} ${paymentState}`}>
@@ -106,10 +199,26 @@ function PickCard({ pick, state, lastResult }: { pick: Pick; state: TeamState; l
         <strong>{team.captain}</strong>
       </div>
       <div className="result-row">
+        <span>Group table</span>
+        <strong>{standing ? `#${standing.rank} • ${standing.points} pts` : "No table yet"}</strong>
+        <small>{standing ? `${standing.played} played • GD ${standing.goalDifference > 0 ? `+${standing.goalDifference}` : standing.goalDifference}` : `Group ${team.group}`}</small>
+      </div>
+      <div className="result-row">
         <span>Last result</span>
         <strong>{resultText}</strong>
         <small>{opponentText}</small>
       </div>
+      <div className="result-row">
+        <span>Next match</span>
+        <strong>{nextMatchText}</strong>
+        <small>{nextOpponentText}</small>
+      </div>
+      {state === "eliminated" && (
+        <div className="banter-strip">
+          <strong>Friendly banter</strong>
+          <span>{roastText}</span>
+        </div>
+      )}
     </article>
   );
 }
@@ -182,6 +291,22 @@ export function WorldCupDashboard() {
   const paidCount = picks.filter((pick) => pick.paid).length;
   const collectedPool = paidCount * group.entryFee;
   const expectedPool = picks.length * group.entryFee;
+  const entriesArePaused = group.storageMode === "temporary";
+  const showAdminDiagnostics = adminPin.trim().length > 0;
+  const selectedCaptainTeams = useMemo(() => {
+    const seen = new Set<string>();
+    const selected: HeroCaptainTeam[] = [];
+
+    for (const pick of picks) {
+      if (seen.has(pick.teamId)) continue;
+      const team = teamById.get(pick.teamId);
+      if (!team) continue;
+      selected.push({ ...team, pickedBy: pick.name });
+      seen.add(pick.teamId);
+    }
+
+    return selected;
+  }, [picks]);
   const latestFinishedMatchByTeam = useMemo(() => {
     const latest = new Map<string, Match>();
     const finishedMatches = group.games
@@ -195,6 +320,13 @@ export function WorldCupDashboard() {
 
     return latest;
   }, [group.games]);
+  const standingByTeam = useMemo(() => {
+    const standings = new Map<string, TeamStanding>();
+    for (const groupStanding of group.standings) {
+      for (const row of groupStanding.rows) standings.set(row.teamId, row);
+    }
+    return standings;
+  }, [group.standings]);
 
   useEffect(() => {
     if (!paymentName && picks[0]) setPaymentName(picks[0].name.toLocaleLowerCase("en-US"));
@@ -321,8 +453,9 @@ export function WorldCupDashboard() {
       </header>
 
       <div className="page" id="top">
-        <section className="hero">
-          <div>
+        <section className={`hero ${selectedCaptainTeams.length ? "has-captains" : ""}`}>
+          <HeroCaptainWall selectedTeams={selectedCaptainTeams} />
+          <div className="hero-copy">
             <p className="eyebrow light">World Cup 2026</p>
             <h1>Your World<br /><em>Cup pool</em></h1>
             <p>A clean board for picks, payments, recent games, and who is still alive.</p>
@@ -335,11 +468,6 @@ export function WorldCupDashboard() {
           </div>
         </section>
 
-        <div className={`storage-banner ${group.storageMode === "temporary" ? "warning" : "ok"}`}>
-          <strong>{group.storageMode === "temporary" ? "Do not share yet" : "Storage ready"}</strong>
-          <span>{storageMessage(group.storageMode)}</span>
-        </div>
-
         <section className="pick-panel">
           <div className="section-heading compact">
             <div><span className="step-number">01</span><h2>Make your pick</h2></div>
@@ -348,8 +476,9 @@ export function WorldCupDashboard() {
           <form className="pick-form" onSubmit={saveMyPick}>
             <label><span>Your name</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder="Alex" maxLength={24} required /></label>
             <label className="team-select"><span>Your country</span><select value={teamId} onChange={(event) => setTeamId(event.target.value)}>{teams.map((team) => <option key={team.id} value={team.id}>Group {team.group} · {team.name}</option>)}</select></label>
-            <button className="primary-button" disabled={loading || !name.trim() || group.storageMode === "temporary"}>{loading ? "Saving..." : "Lock it in"}</button>
+            <button className="primary-button" disabled={loading || !name.trim() || entriesArePaused}>{loading ? "Saving..." : "Lock it in"}</button>
           </form>
+          {entriesArePaused && <p className="setup-note">The pool is almost ready. The organizer will open picks shortly.</p>}
         </section>
 
         {(notice || error) && <div className={`message-bar ${error ? "error" : "success"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
@@ -368,11 +497,28 @@ export function WorldCupDashboard() {
 
         <section className="content-section">
           <div className="section-heading">
-            <div><span className="step-number">03</span><h2>The circle</h2></div>
+            <div><span className="step-number">03</span><h2>Group tables</h2></div>
+            <span className="updated">Updated from finished group games</span>
+          </div>
+          <GroupTables standings={group.standings} />
+        </section>
+
+        <section className="content-section">
+          <div className="section-heading">
+            <div><span className="step-number">04</span><h2>The circle</h2></div>
             <div className="legend"><span><i className="alive-dot" />Still in</span><span><i className="out-dot" />Eliminated</span></div>
           </div>
           {picks.length ? (
-            <div className="picks-grid">{picks.map((pick) => <PickCard key={pick.name.toLowerCase()} pick={pick} state={group.statuses[pick.teamId] ?? "alive"} lastResult={latestFinishedMatchByTeam.get(pick.teamId)} />)}</div>
+            <div className="picks-grid">{picks.map((pick) => (
+              <PickCard
+                key={pick.name.toLowerCase()}
+                pick={pick}
+                state={group.statuses[pick.teamId] ?? "alive"}
+                lastResult={latestFinishedMatchByTeam.get(pick.teamId)}
+                nextMatch={group.nextMatches[pick.teamId]}
+                standing={standingByTeam.get(pick.teamId)}
+              />
+            ))}</div>
           ) : (
             <div className="empty-state"><span className="empty-number">01</span><strong>Be the first brave soul.</strong><span>Add your pick above and share the group code with the others.</span></div>
           )}
@@ -380,7 +526,7 @@ export function WorldCupDashboard() {
 
         <section className="content-section">
           <div className="section-heading">
-            <div><span className="step-number">04</span><h2>Prize pool</h2></div>
+            <div><span className="step-number">05</span><h2>Prize pool</h2></div>
             <span className="updated">${group.entryFee} entry fee</span>
           </div>
           <div className="pool-summary">
@@ -442,7 +588,7 @@ export function WorldCupDashboard() {
                 <button disabled={loading || !adminPin || !picks.length}>Update payment</button>
               </form>
             </div>
-            {group.storageMode !== "cloud" && <p className={group.storageMode === "local-file" ? "storage-note" : "storage-warning"}>{storageMessage(group.storageMode)}</p>}
+            {showAdminDiagnostics && <p className={group.storageMode === "cloud" || group.storageMode === "local-file" ? "storage-note" : "storage-warning"}>{storageMessage(group.storageMode)}</p>}
           </div>
         </details>
       </div>

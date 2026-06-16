@@ -10,6 +10,7 @@ A small private World Cup picks board for up to 20 friends. Each person chooses 
 - Green active cards and gray eliminated cards
 - Prize pool tracker with $50 payment status per friend
 - Recent match results and upcoming fixtures
+- Group standings and next match details from the public score feed
 - Organizer panel for corrections, manual results, and elimination status
 - Automatic match updates from ESPN's public World Cup feed
 - Automatic elimination of knockout-match losers after a score sync

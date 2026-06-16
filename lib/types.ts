@@ -21,10 +21,32 @@ export type Match = {
   utcDate: string;
 };
 
+export type TeamStanding = {
+  teamId: string;
+  teamName: string;
+  group: string;
+  rank: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+};
+
+export type GroupStanding = {
+  group: string;
+  rows: TeamStanding[];
+};
+
 export type GroupData = {
   picks: Pick[];
   statuses: Record<string, TeamState>;
   games: Match[];
+  standings: GroupStanding[];
+  nextMatches: Record<string, Match>;
   maxFriends: number;
   entryFee: number;
   usingCloudStorage: boolean;

@@ -1,5 +1,5 @@
-import { findTeamId } from "./teams";
-import type { Match } from "./types";
+import { findTeamId, teams } from "./teams";
+import type { GroupStanding, Match, TeamStanding } from "./types";
 
 const ESPN_WORLD_CUP_URL =
   "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=2026&limit=200";
@@ -37,6 +37,8 @@ type EspnPayload = {
 
 export type WorldCupFeed = {
   games: Match[];
+  standings: GroupStanding[];
+  nextMatches: Record<string, Match>;
   eliminatedTeamIds: string[];
   fetchedAt: string;
 };
@@ -72,6 +74,90 @@ function sortGames(games: Match[]) {
     .slice(0, 12);
 
   return [...live, ...finished, ...upcoming].slice(0, 24);
+}
+
+function isGroupMatch(match: Match) {
+  return /^group\s+[a-l]$/i.test(match.stage);
+}
+
+function emptyStanding(teamId: string): TeamStanding {
+  const team = teams.find((candidate) => candidate.id === teamId)!;
+  return {
+    teamId,
+    teamName: team.name,
+    group: team.group,
+    rank: 0,
+    played: 0,
+    won: 0,
+    drawn: 0,
+    lost: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    goalDifference: 0,
+    points: 0,
+  };
+}
+
+function recordResult(row: TeamStanding, goalsFor: number, goalsAgainst: number) {
+  row.played += 1;
+  row.goalsFor += goalsFor;
+  row.goalsAgainst += goalsAgainst;
+  row.goalDifference = row.goalsFor - row.goalsAgainst;
+
+  if (goalsFor > goalsAgainst) {
+    row.won += 1;
+    row.points += 3;
+  } else if (goalsFor < goalsAgainst) {
+    row.lost += 1;
+  } else {
+    row.drawn += 1;
+    row.points += 1;
+  }
+}
+
+function buildStandings(games: Match[]) {
+  const rowsByTeam = new Map(teams.map((team) => [team.id, emptyStanding(team.id)]));
+
+  for (const match of games) {
+    if (!isGroupMatch(match) || match.status !== "FINISHED") continue;
+    if (!match.homeTeamId || !match.awayTeamId || match.homeScore === null || match.awayScore === null) continue;
+
+    const home = rowsByTeam.get(match.homeTeamId);
+    const away = rowsByTeam.get(match.awayTeamId);
+    if (!home || !away) continue;
+
+    recordResult(home, match.homeScore, match.awayScore);
+    recordResult(away, match.awayScore, match.homeScore);
+  }
+
+  const groups = [...new Set(teams.map((team) => team.group))].sort();
+  return groups.map<GroupStanding>((group) => {
+    const rows = [...rowsByTeam.values()]
+      .filter((row) => row.group === group)
+      .sort((a, b) =>
+        b.points - a.points ||
+        b.goalDifference - a.goalDifference ||
+        b.goalsFor - a.goalsFor ||
+        a.teamName.localeCompare(b.teamName)
+      )
+      .map((row, index) => ({ ...row, rank: index + 1 }));
+
+    return { group, rows };
+  });
+}
+
+function buildNextMatches(games: Match[]) {
+  const nextMatches: Record<string, Match> = {};
+  const upcoming = games
+    .filter((match) => match.status === "SCHEDULED" || match.status === "IN_PLAY")
+    .sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime());
+
+  for (const match of upcoming) {
+    if (match.homeTeamId && !nextMatches[match.homeTeamId]) nextMatches[match.homeTeamId] = match;
+    if (match.awayTeamId && !nextMatches[match.awayTeamId]) nextMatches[match.awayTeamId] = match;
+  }
+
+  return nextMatches;
 }
 
 export async function fetchWorldCupFeed(): Promise<WorldCupFeed> {
@@ -120,6 +206,8 @@ export async function fetchWorldCupFeed(): Promise<WorldCupFeed> {
 
   return {
     games: sortGames(games),
+    standings: buildStandings(games),
+    nextMatches: buildNextMatches(games),
     eliminatedTeamIds: [...eliminatedTeamIds],
     fetchedAt: new Date().toISOString(),
   };
