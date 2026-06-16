@@ -1,4 +1,4 @@
-# Cup Circle 26
+# Pool XI
 
 A small private World Cup picks board for up to 20 friends. Each person chooses one country. Active picks stay green; eliminated teams turn gray. The board also shows flags, captains, and recent matches.
 
@@ -50,7 +50,7 @@ Create an empty GitHub repository, then run these commands from the `world-cup-f
 ```bash
 git init
 git add .
-git commit -m "Build Cup Circle 26"
+git commit -m "Build Pool XI"
 git branch -M main
 git remote add origin https://github.com/YOUR-NAME/YOUR-REPO.git
 git push -u origin main

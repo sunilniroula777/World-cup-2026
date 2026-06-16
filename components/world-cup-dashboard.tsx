@@ -255,9 +255,9 @@ export function WorldCupDashboard() {
       <main className="gate-shell">
         <section className="gate-card">
           <div className="mini-mark"><span>26</span></div>
-          <p className="eyebrow">A private World Cup circle</p>
-          <h1>One team.<br />Twenty friends.</h1>
-          <p className="gate-copy">Pick the country you are backing, follow the results, and see whose dream stays green.</p>
+          <p className="eyebrow">Private World Cup pool</p>
+          <h1>Pool XI</h1>
+          <p className="gate-copy">Pick a country, track the prize pool, and follow the tournament together.</p>
           <form onSubmit={submitCode} className="gate-form">
             <label htmlFor="group-code">Your group code</label>
             <div>
@@ -276,9 +276,9 @@ export function WorldCupDashboard() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Cup Circle home">
+        <a className="brand" href="#top" aria-label="Pool XI home">
           <span className="brand-mark">26</span>
-          <span>Cup Circle</span>
+          <span>Pool XI</span>
         </a>
         <div className="top-actions">
           <span className="group-chip"><i /> Group {groupCode}</span>
@@ -289,9 +289,9 @@ export function WorldCupDashboard() {
       <div className="page" id="top">
         <section className="hero">
           <div>
-            <p className="eyebrow light">World Cup 2026 friend picks</p>
-            <h1>Who stays<br /><em>in the game?</em></h1>
-            <p>Green means the dream is alive. Gray means it is time to adopt a second team.</p>
+            <p className="eyebrow light">World Cup 2026</p>
+            <h1>Your World<br /><em>Cup pool</em></h1>
+            <p>A clean board for picks, payments, recent games, and who is still alive.</p>
           </div>
           <div className="hero-scoreboard">
             <div><strong>${collectedPool}</strong><span>Prize pool</span></div>
@@ -412,7 +412,7 @@ export function WorldCupDashboard() {
           </div>
         </details>
       </div>
-      <footer><span>Cup Circle 26</span><span>Built for friendly arguments.</span></footer>
+      <footer><span>Pool XI</span><span>Built for friendly arguments.</span></footer>
     </main>
   );
 }
