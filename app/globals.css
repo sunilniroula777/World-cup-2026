@@ -241,6 +241,9 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .admin-card h3 { margin: 0 0 6px; font: 700 23px/1 var(--font-display); text-transform: uppercase; }
 .admin-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; }
 .admin-card button { min-height: 42px; border: 0; background: var(--ink); color: white; font-weight: 700; margin-top: 4px; }
+.danger-card { border-color: #e2b8b2; background: #fff8f6; }
+.danger-card button { background: #9f2f28; }
+.danger-card button:hover { background: #7f251f; }
 .score-entry { display: grid; grid-template-columns: 1fr 64px; gap: 8px; }
 .storage-warning { background: #fff0c7; color: #6f5818; padding: 12px; font-size: 12px; }
 .storage-note { background: var(--green-soft); color: #245634; padding: 12px; font-size: 12px; }

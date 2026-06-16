@@ -358,6 +358,7 @@ export function WorldCupDashboard() {
   const [awayScore, setAwayScore] = useState("0");
   const [paymentName, setPaymentName] = useState("");
   const [paymentPaid, setPaymentPaid] = useState("true");
+  const [removeName, setRemoveName] = useState("");
   const [showGroupTables, setShowGroupTables] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState("");
 
@@ -437,7 +438,11 @@ export function WorldCupDashboard() {
     if (paymentName && !picks.some((pick) => pick.name.toLocaleLowerCase("en-US") === paymentName)) {
       setPaymentName(picks[0]?.name.toLocaleLowerCase("en-US") ?? "");
     }
-  }, [paymentName, picks]);
+    if (!removeName && picks[0]) setRemoveName(picks[0].name.toLocaleLowerCase("en-US"));
+    if (removeName && !picks.some((pick) => pick.name.toLocaleLowerCase("en-US") === removeName)) {
+      setRemoveName(picks[0]?.name.toLocaleLowerCase("en-US") ?? "");
+    }
+  }, [paymentName, picks, removeName]);
 
   async function submitCode(event: FormEvent) {
     event.preventDefault();
@@ -515,6 +520,18 @@ export function WorldCupDashboard() {
       await apiPost("/api/admin/payment", { adminPin, name: paymentName, paid: paymentPaid === "true" }, "Pool payment updated.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not update the pool payment.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function removeEntry(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    try {
+      await apiPost("/api/admin/pick", { adminPin, name: removeName }, "Pool entry removed.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not remove the pool entry.");
     } finally {
       setLoading(false);
     }
@@ -724,6 +741,14 @@ export function WorldCupDashboard() {
                   <option value="false">Not paid</option>
                 </select>
                 <button disabled={loading || !adminPin || !picks.length}>Update payment</button>
+              </form>
+              <form onSubmit={removeEntry} className="admin-card danger-card">
+                <h3>Remove entry</h3>
+                <p>Delete a mistaken name from the pool. They can rejoin with the correct name after this.</p>
+                <select value={removeName} onChange={(event) => setRemoveName(event.target.value)} disabled={!picks.length}>
+                  {picks.length ? picks.map((pick) => <option key={`remove-${pick.name.toLowerCase()}`} value={pick.name.toLocaleLowerCase("en-US")}>{pick.name}</option>) : <option value="">No entries yet</option>}
+                </select>
+                <button disabled={loading || !adminPin || !picks.length}>Remove person</button>
               </form>
             </div>
             {showAdminDiagnostics && <p className={group.storageMode === "cloud" || group.storageMode === "local-file" ? "storage-note" : "storage-warning"}>{storageMessage(group.storageMode)}</p>}

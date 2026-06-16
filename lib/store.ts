@@ -156,6 +156,22 @@ export async function setPickPaid(code: string, normalizedName: string, paid: bo
   return true;
 }
 
+export async function removePick(code: string, normalizedName: string) {
+  if (redis) {
+    return (await redis.hdel(key(code, "picks"), normalizedName)) > 0;
+  }
+  if (useLocalFile) {
+    return updateLocalStore((store) => {
+      const group = ensureGroup(store, code);
+      if (!group.picks[normalizedName]) return false;
+      delete group.picks[normalizedName];
+      return true;
+    });
+  }
+
+  return memory.picks.get(code)?.delete(normalizedName) ?? false;
+}
+
 export async function pickCount(code: string) {
   if (redis) return redis.hlen(key(code, "picks"));
   if (useLocalFile) return Object.keys((await getLocalGroup(code)).picks).length;
