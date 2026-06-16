@@ -10,6 +10,7 @@ export type Pick = {
 
 export type GroupSettings = {
   entriesLocked?: boolean;
+  changesLocked?: boolean;
 };
 
 export type MatchEventType = "goal" | "yellow-card" | "red-card" | "other";
@@ -67,6 +68,7 @@ export type GroupData = {
   maxFriends: number;
   entryFee: number;
   entriesLocked: boolean;
+  changesLocked: boolean;
   usingCloudStorage: boolean;
   storageMode?: "cloud" | "local-file" | "temporary";
   scoreSyncEnabled: boolean;

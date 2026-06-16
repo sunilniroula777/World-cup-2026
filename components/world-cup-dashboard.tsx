@@ -13,6 +13,7 @@ const emptyGroup: GroupData = {
   maxFriends: 20,
   entryFee: 50,
   entriesLocked: false,
+  changesLocked: false,
   usingCloudStorage: false,
   storageMode: "temporary",
   scoreSyncEnabled: false,
@@ -341,6 +342,13 @@ function storageMessage(mode: GroupData["storageMode"]) {
   return "Storage setup required. Connect Upstash Redis in Vercel before friends submit picks.";
 }
 
+function lockNotice(entriesLocked: boolean, changesLocked: boolean) {
+  if (entriesLocked && changesLocked) return "The pool is locked. No new entries or pick changes are allowed.";
+  if (entriesLocked) return "New entries are locked. Existing players can still update using the same name.";
+  if (changesLocked) return "Pick changes are locked. New players can still join.";
+  return "";
+}
+
 export function WorldCupDashboard() {
   const [groupCode, setGroupCode] = useState("");
   const [codeInput, setCodeInput] = useState("");
@@ -361,6 +369,7 @@ export function WorldCupDashboard() {
   const [paymentPaid, setPaymentPaid] = useState("true");
   const [removeName, setRemoveName] = useState("");
   const [entriesLockedChoice, setEntriesLockedChoice] = useState("false");
+  const [changesLockedChoice, setChangesLockedChoice] = useState("false");
   const [showGroupTables, setShowGroupTables] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState("");
 
@@ -409,6 +418,8 @@ export function WorldCupDashboard() {
   const expectedPool = picks.length * group.entryFee;
   const entriesArePaused = group.storageMode === "temporary";
   const entriesAreLocked = Boolean(group.entriesLocked);
+  const changesAreLocked = Boolean(group.changesLocked);
+  const poolLockNotice = lockNotice(entriesAreLocked, changesAreLocked);
   const showAdminDiagnostics = adminPin.trim().length > 0;
   const latestFinishedMatchByTeam = useMemo(() => {
     const latest = new Map<string, Match>();
@@ -449,7 +460,8 @@ export function WorldCupDashboard() {
 
   useEffect(() => {
     setEntriesLockedChoice(group.entriesLocked ? "true" : "false");
-  }, [group.entriesLocked]);
+    setChangesLockedChoice(group.changesLocked ? "true" : "false");
+  }, [group.changesLocked, group.entriesLocked]);
 
   async function submitCode(event: FormEvent) {
     event.preventDefault();
@@ -548,9 +560,17 @@ export function WorldCupDashboard() {
     event.preventDefault();
     setLoading(true);
     try {
-      await apiPost("/api/admin/entries", { adminPin, entriesLocked: entriesLockedChoice === "true" }, entriesLockedChoice === "true" ? "New entries locked." : "New entries opened.");
+      await apiPost(
+        "/api/admin/entries",
+        {
+          adminPin,
+          entriesLocked: entriesLockedChoice === "true",
+          changesLocked: changesLockedChoice === "true",
+        },
+        "Pool lock settings saved."
+      );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not update entry settings.");
+      setError(caught instanceof Error ? caught.message : "Could not update pool lock settings.");
     } finally {
       setLoading(false);
     }
@@ -618,7 +638,7 @@ export function WorldCupDashboard() {
             <button className="primary-button" disabled={loading || !name.trim() || entriesArePaused}>{loading ? "Saving..." : "Lock it in"}</button>
           </form>
           {entriesArePaused && <p className="setup-note">The pool is almost ready. The organizer will open picks shortly.</p>}
-          {entriesAreLocked && !entriesArePaused && <p className="setup-note locked">New entries are locked. Existing players can still update using the same name.</p>}
+          {poolLockNotice && !entriesArePaused && <p className="setup-note locked">{poolLockNotice}</p>}
         </section>
 
         {(notice || error) && <div className={`message-bar ${error ? "error" : "success"}`}>{error || notice}<button onClick={() => { setError(""); setNotice(""); }}>×</button></div>}
@@ -752,13 +772,23 @@ export function WorldCupDashboard() {
                 <button type="button" onClick={syncGames} disabled={loading || !adminPin}>Refresh scores now</button>
               </div>
               <form onSubmit={updateEntrySettings} className="admin-card">
-                <h3>Entry lock</h3>
-                <p>Close the pool to new names once your friends are in. Existing names can still update picks.</p>
-                <select value={entriesLockedChoice} onChange={(event) => setEntriesLockedChoice(event.target.value)}>
-                  <option value="false">Open new entries</option>
-                  <option value="true">Lock new entries</option>
-                </select>
-                <button disabled={loading || !adminPin}>Save entry setting</button>
+                <h3>Pool locks</h3>
+                <p>Control when friends can join and when existing players can change teams.</p>
+                <label>
+                  <span>New players</span>
+                  <select value={entriesLockedChoice} onChange={(event) => setEntriesLockedChoice(event.target.value)}>
+                    <option value="false">Open new entries</option>
+                    <option value="true">Lock new entries</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Existing picks</span>
+                  <select value={changesLockedChoice} onChange={(event) => setChangesLockedChoice(event.target.value)}>
+                    <option value="false">Allow changes</option>
+                    <option value="true">Lock changes</option>
+                  </select>
+                </label>
+                <button disabled={loading || !adminPin}>Save pool locks</button>
               </form>
               <form onSubmit={updatePayment} className="admin-card">
                 <h3>Pool payment</h3>

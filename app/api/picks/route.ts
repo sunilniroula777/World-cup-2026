@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
   if (!exists && settings.entriesLocked) {
     return apiError("New entries are locked by the organizer. Existing players can still update their picks.", 423);
   }
+  if (exists && settings.changesLocked) {
+    return apiError("Pick changes are locked by the organizer.", 423);
+  }
   if (!exists && (await pickCount(code)) >= MAX_FRIENDS) {
     return apiError("This group already has 20 friends. Existing friends can still update their picks.", 409);
   }

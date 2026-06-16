@@ -29,7 +29,7 @@ button { cursor: pointer; }
 .gate-card h1, .hero h1 { font-family: var(--font-display), sans-serif; text-transform: uppercase; line-height: .86; letter-spacing: -.035em; margin: 0; }
 .gate-card h1 { font-size: clamp(58px, 13vw, 94px); }
 .gate-copy { color: var(--muted); max-width: 390px; line-height: 1.6; margin: 25px 0 32px; }
-.gate-form label, .pick-form label > span, .pin-field span { display: block; text-transform: uppercase; font-size: 10px; letter-spacing: .13em; font-weight: 700; margin-bottom: 8px; }
+.gate-form label, .pick-form label > span, .pin-field span, .admin-card label > span { display: block; text-transform: uppercase; font-size: 10px; letter-spacing: .13em; font-weight: 700; margin-bottom: 8px; }
 .gate-form > div { display: flex; border: 1px solid var(--ink); background: var(--white); }
 .gate-form input { min-width: 0; flex: 1; padding: 15px 16px; border: 0; outline: none; text-transform: uppercase; font-weight: 700; letter-spacing: .08em; background: transparent; }
 .gate-form button { border: 0; background: var(--ink); color: white; padding: 0 20px; font-weight: 700; }

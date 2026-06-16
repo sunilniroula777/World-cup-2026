@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, isValidAdminPin, isValidGroupCode, normalizeCode } from "@/lib/server";
-import { setEntriesLocked, storageMode } from "@/lib/store";
+import { setChangesLocked, setEntriesLocked, storageMode } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -12,8 +12,13 @@ export async function POST(request: NextRequest) {
   if (storageMode === "temporary") {
     return apiError("Storage is not connected yet. Add Upstash Redis in Vercel before changing entry settings.", 503);
   }
-  if (typeof body.entriesLocked !== "boolean") return apiError("Choose whether entries are open or locked.");
+  const shouldUpdateEntries = typeof body.entriesLocked === "boolean";
+  const shouldUpdateChanges = typeof body.changesLocked === "boolean";
+  if (!shouldUpdateEntries && !shouldUpdateChanges) return apiError("Choose at least one pool lock setting.");
 
-  await setEntriesLocked(code, body.entriesLocked);
+  const updates: Promise<void>[] = [];
+  if (shouldUpdateEntries) updates.push(setEntriesLocked(code, body.entriesLocked));
+  if (shouldUpdateChanges) updates.push(setChangesLocked(code, body.changesLocked));
+  await Promise.all(updates);
   return NextResponse.json({ ok: true });
 }

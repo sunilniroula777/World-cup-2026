@@ -254,3 +254,18 @@ export async function setEntriesLocked(code: string, entriesLocked: boolean) {
   }
   memory.settings.set(code, nextSettings);
 }
+
+export async function setChangesLocked(code: string, changesLocked: boolean) {
+  const nextSettings = { ...(await getSettings(code)), changesLocked };
+  if (redis) {
+    await redis.set(key(code, "settings"), nextSettings);
+    return;
+  }
+  if (useLocalFile) {
+    await updateLocalStore((store) => {
+      ensureGroup(store, code).settings = nextSettings;
+    });
+    return;
+  }
+  memory.settings.set(code, nextSettings);
+}

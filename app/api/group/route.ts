@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
     maxFriends: MAX_FRIENDS,
     entryFee: ENTRY_FEE,
     entriesLocked: Boolean(settings.entriesLocked),
+    changesLocked: Boolean(settings.changesLocked),
     usingCloudStorage,
     storageMode,
     scoreSyncEnabled: true,
